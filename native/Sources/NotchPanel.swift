@@ -83,6 +83,14 @@ final class PetViewModel: ObservableObject {
         }
     }
 
+    /// Called right before the panel is ordered out. A later reappearance must
+    /// start from the compact collapsed state, never from a hover expansion
+    /// that happened to be on screen when the last task finished.
+    func prepareForHiding() {
+        collapseWork?.cancel()
+        setExpanded(false)
+    }
+
     private func setExpanded(_ value: Bool) {
         guard expanded != value else { return }
         expanded = value
@@ -236,7 +244,10 @@ final class PetWindowController: NSWindowController {
     let model = PetViewModel()
 
     private let socketClient: SocketClient
+    private let preferences = PetPreferences.shared
+    private let statusItem = StatusItemController()
     private var expandedObservation: AnyCancellable?
+    private var visibilityObservation: AnyCancellable?
     private var screenObserver: NSObjectProtocol?
     private var currentScreen: NSScreen
     private var notchWidth: CGFloat
@@ -245,6 +256,8 @@ final class PetWindowController: NSWindowController {
     private var frameAnimationFrom: NSRect = .zero
     private var frameAnimationTo: NSRect = .zero
     private var backdropView: NotchBackdropView?
+    private var panelIsVisible = false
+    private var launchPeekScheduled = false
 
     private var collapsedSize: NSSize {
         NSSize(width: max(360, notchWidth + 220), height: 58)
@@ -280,12 +293,24 @@ final class PetWindowController: NSWindowController {
         expandedObservation = model.$layoutRevision
             .sink { [weak self] _ in
                 DispatchQueue.main.async {
-                    guard let self else { return }
+                    guard let self, self.panelIsVisible else { return }
                     self.resize(expanded: self.model.expanded, animated: true)
                 }
             }
 
         socketClient.delegate = self
+
+        statusItem.onOpenSettings = { [weak self] in
+            self?.presentSettings()
+        }
+        statusItem.onOpenDSH = { [weak self] in
+            guard let self else { return }
+            DSHLauncher.open(origin: self.model.originURL)
+        }
+        statusItem.onQuit = {
+            AppLog.write("status item: quit")
+            NSApp.terminate(nil)
+        }
 
         screenObserver = NotificationCenter.default.addObserver(
             forName: NSApplication.didChangeScreenParametersNotification,
@@ -301,23 +326,90 @@ final class PetWindowController: NSWindowController {
     }
 
     func show() {
-        guard let panel = window else { return }
-        panel.orderFrontRegardless()
         socketClient.start()
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
-            self?.model.beginPeek()
+        observeVisibility()
+        if panelIsVisible {
+            scheduleLaunchPeek()
         }
-        AppLog.write("panel shown frame=\(NSStringFromRect(panel.frame))")
+        let frame = window.map { NSStringFromRect($0.frame) } ?? "?"
+        AppLog.write("panel show request visible=\(panelIsVisible) frame=\(frame)")
     }
 
     func shutdown() {
         stopFrameAnimation()
         socketClient.stop()
         expandedObservation?.cancel()
+        visibilityObservation?.cancel()
+        statusItem.setVisible(false)
         if let screenObserver {
             NotificationCenter.default.removeObserver(screenObserver)
         }
         window?.orderOut(nil)
+    }
+
+    /// Opens the settings popover even when the panel is hidden because no
+    /// task is running. The panel is revealed for as long as the popover is
+    /// open, then the visibility policy hides it again.
+    func presentSettings() {
+        guard let panel = window else { return }
+        setPanelVisible(true)
+        panel.orderFrontRegardless()
+        model.setSettingsOpen(true)
+        AppLog.write("settings opened from menu bar")
+    }
+
+    private func observeVisibility() {
+        guard visibilityObservation == nil else { return }
+        let hasActiveTask = model.$payload
+            .map { payload -> Bool in
+                let phase = PetPhase(raw: payload.focus?.phase ?? payload.overall)
+                return (payload.activeCount ?? 0) > 0 || phase.isBusy || phase == .waiting
+            }
+            .removeDuplicates()
+        let pinned = model.$pinned
+            .removeDuplicates()
+        let settingsOpen = model.$settingsOpen
+            .removeDuplicates()
+        let hideWhenIdle = preferences.$hideWhenIdle
+            .removeDuplicates()
+        visibilityObservation = Publishers.CombineLatest4(
+            hasActiveTask,
+            pinned,
+            settingsOpen,
+            hideWhenIdle
+        )
+        .sink { [weak self] hasActiveTask, pinned, settingsOpen, hideWhenIdle in
+            guard let self else { return }
+            let visible = !hideWhenIdle || hasActiveTask || pinned || settingsOpen
+            self.setPanelVisible(visible)
+        }
+    }
+
+    private func setPanelVisible(_ visible: Bool) {
+        guard let panel = window else { return }
+        statusItem.setVisible(!visible)
+        guard panelIsVisible != visible else { return }
+        panelIsVisible = visible
+        if visible {
+            resize(expanded: false, animated: false)
+            panel.alphaValue = 1
+            panel.orderFrontRegardless()
+            AppLog.write("panel shown")
+        } else {
+            model.prepareForHiding()
+            stopFrameAnimation()
+            panel.orderOut(nil)
+            AppLog.write("panel hidden: no task in progress")
+        }
+    }
+
+    private func scheduleLaunchPeek() {
+        guard !launchPeekScheduled else { return }
+        launchPeekScheduled = true
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.15) { [weak self] in
+            guard let self, self.panelIsVisible else { return }
+            self.model.beginPeek()
+        }
     }
 
     private func installHostingView() {

@@ -38,7 +38,7 @@ struct PetView: View {
             .contentShape(Rectangle())
             .contextMenu { menu }
             .popover(isPresented: settingsPresented, arrowEdge: .top) {
-                AccentSettingsView(onClose: { model.setSettingsOpen(false) })
+                PetSettingsView(onClose: { model.setSettingsOpen(false) })
             }
             .animation(
                 reduceMotion ? nil : .easeOut(duration: 0.18),
@@ -196,8 +196,8 @@ struct PetView: View {
                 }
 
                 IconButton(
-                    systemName: "paintpalette",
-                    label: L10n.accentSettings,
+                    systemName: "gearshape",
+                    label: L10n.settings,
                     accent: accent
                 ) {
                     model.setSettingsOpen(!model.settingsOpen)
@@ -271,7 +271,7 @@ struct PetView: View {
         Button(L10n.openDSH) { DSHLauncher.open(origin: model.originURL) }
         Button(model.pinned ? L10n.unpin : L10n.pin) { model.togglePinned() }
         Divider()
-        Button(L10n.accentSettings) { model.setSettingsOpen(true) }
+        Button(L10n.settings) { model.setSettingsOpen(true) }
         Divider()
         Button(L10n.quitPet) {
             AppLog.write("menu: quit")

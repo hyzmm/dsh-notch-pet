@@ -1,7 +1,8 @@
 import SwiftUI
 
-struct AccentSettingsView: View {
+struct PetSettingsView: View {
     @ObservedObject private var theme = PetTheme.shared
+    @ObservedObject private var preferences = PetPreferences.shared
     var onClose: () -> Void
 
     @State private var hue: Double
@@ -29,12 +30,9 @@ struct AccentSettingsView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
             header
-            LazyVGrid(columns: columns, spacing: 8) {
-                ForEach(AccentPreset.all) { preset in
-                    presetButton(preset)
-                }
-            }
+            accentSection
             customSection
+            behaviorSection
         }
         .padding(16)
         .frame(width: 300)
@@ -62,10 +60,10 @@ struct AccentSettingsView: View {
             .frame(width: 26, height: 26)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(L10n.accentColor)
+                Text(L10n.settingsTitle)
                     .font(.system(size: 12.5, weight: .semibold, design: .rounded))
                     .foregroundStyle(.white.opacity(0.94))
-                Text(L10n.accentHint)
+                Text(L10n.settingsHint)
                     .font(.system(size: 9, weight: .regular, design: .rounded))
                     .foregroundStyle(.white.opacity(0.42))
                     .lineLimit(1)
@@ -87,6 +85,21 @@ struct AccentSettingsView: View {
             .buttonStyle(.plain)
             .help(L10n.close)
             .accessibilityLabel(L10n.close)
+        }
+    }
+
+    private var accentSection: some View {
+        VStack(alignment: .leading, spacing: 7) {
+            Text(L10n.accentColor)
+                .font(.system(size: 8.5, weight: .semibold, design: .rounded))
+                .tracking(0.45)
+                .foregroundStyle(.white.opacity(0.34))
+
+            LazyVGrid(columns: columns, spacing: 8) {
+                ForEach(AccentPreset.all) { preset in
+                    presetButton(preset)
+                }
+            }
         }
     }
 
@@ -245,6 +258,69 @@ struct AccentSettingsView: View {
         .buttonStyle(.plain)
         .disabled(theme.isDefault)
         .help(L10n.reset)
+    }
+
+    private var behaviorSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Rectangle()
+                .fill(Color.white.opacity(0.07))
+                .frame(height: 0.6)
+
+            HStack(alignment: .center, spacing: 9) {
+                Image(systemName: "eye.slash")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(
+                        preferences.hideWhenIdle
+                            ? theme.palette.primary.opacity(0.92)
+                            : Color.white.opacity(0.44)
+                    )
+                    .frame(width: 22, height: 22)
+                    .background(
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(
+                                preferences.hideWhenIdle
+                                    ? theme.palette.primary.opacity(0.14)
+                                    : Color.white.opacity(0.05)
+                            )
+                    )
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(L10n.onlyWhileWorking)
+                        .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.86))
+                    Text(L10n.onlyWhileWorkingHint)
+                        .font(.system(size: 8.5, weight: .regular, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.38))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+
+                Spacer(minLength: 6)
+
+                Toggle(
+                    "",
+                    isOn: Binding(
+                        get: { preferences.hideWhenIdle },
+                        set: { preferences.setHideWhenIdle($0) }
+                    )
+                )
+                .labelsHidden()
+                .toggleStyle(.switch)
+                .controlSize(.mini)
+                .tint(theme.palette.primary)
+                .help(L10n.onlyWhileWorkingHint)
+                .accessibilityLabel(L10n.onlyWhileWorking)
+            }
+            .padding(9)
+            .background(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .fill(Color.white.opacity(0.045))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .stroke(Color.white.opacity(0.06), lineWidth: 0.6)
+            )
+        }
     }
 
     private var saturationBrightnessField: some View {

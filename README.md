@@ -9,7 +9,7 @@ A macOS notch companion for DSH. It peeks out of the hardware notch, shows the s
 ## Architecture
 
 - `index.js` is the Host half. It folds live `session/event`, `agent/status`, `goal/changed`, and `agent/error` events into a small per-session state, then writes newline-delimited JSON to a private Unix socket.
-- `native/DSHNotchPet.app` is a menu-less AppKit/SwiftUI panel positioned at the top center of the notched display. It reads the socket, draws the pet, and animates progress.
+- `native/DSHNotchPet.app` is a menu-less AppKit/SwiftUI panel positioned at the top center of the notched display. It reads the socket, draws the pet, and animates progress. When the user asks it to appear only while working, a pawprint menu bar item stands in for the hidden panel.
 - The Host kills the panel when the plugin unloads. The panel also exits about 20 seconds after the socket disappears, so a crashed Host does not leave an orphan overlay.
 
 The socket lives at `~/Library/Application Support/DSHNotchPet/pet-<pid>.sock` with mode `0600`. `current.json` in the same directory names the live socket for diagnostics.
@@ -45,13 +45,21 @@ No percentage is invented when DSH has no countable unit: without one, the bar s
 
 - Hover: expand
 - Click the pet: pin or unpin the panel
-- Palette button in the expanded footer: open the accent settings
+- Gear button in the expanded footer: open settings (accent color and visibility)
 - Open DSH: focuses the running DSH desktop app; falls back to the web origin only when the desktop app is not installed
-- Right click: open DSH, pin, change the accent, or quit the pet
+- Right click: open DSH, pin, open settings, or quit the pet
+
+## Visibility
+
+Open **Settings…** and turn on **Only while working** to order the panel out entirely whenever no DSH task is running. The notch and the strip below it stay free; the panel comes back as soon as a task starts. Waiting for your answer counts as running, while idle, finished, and failed sessions do not.
+
+While the panel is hidden, a pawprint appears in the menu bar. It offers **Settings…**, **Open DSH**, the **Only while working** switch, and **Quit**. If menu bar space is too crowded to show it, start any DSH task to bring the panel back, then reach settings from the gear button.
+
+The preference is stored in the app's `UserDefaults` as `hideWhenIdle` and is off by default. Pinning the panel overrides it and keeps the panel visible.
 
 ## Accent color
 
-The expanded panel has a palette button, and the right-click menu has **Accent Color…**. The popover offers six presets — Aurora (the default blue), Glacier, Iris, Sakura, Tangerine, and Mint — plus a custom picker with hue, saturation, and brightness controls.
+The settings popover opens from the gear button or **Settings…** in the right-click menu. It offers six presets — Aurora (the default blue), Glacier, Iris, Sakura, Tangerine, and Mint — plus a custom picker with hue, saturation, and brightness controls.
 
 The accent recolors the working pet, the resting pet, the glow behind it, the loading arc, the progress bar, and the status dot. Waiting stays amber, errors stay red, and a completed turn stays mint so the status is still readable with any accent. Changes apply live, survive relaunches, and are stored in the app's `UserDefaults` (`local.dsh.notchpet`). **Reset** returns to Aurora.
 
