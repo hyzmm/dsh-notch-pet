@@ -106,6 +106,93 @@ final class NotchPanel: NSPanel {
     override var canBecomeMain: Bool { false }
 }
 
+final class NotchBackdropView: NSView {
+    var expanded = false { didSet { updatePath() } }
+    var hasNotch = true { didSet { updatePath() } }
+
+    private let shapeLayer = CAShapeLayer()
+
+    override init(frame: NSRect) {
+        super.init(frame: frame)
+        wantsLayer = true
+        layer = CALayer()
+        layer?.backgroundColor = NSColor.clear.cgColor
+        shapeLayer.fillColor = NSColor(red: 0.018, green: 0.022, blue: 0.032, alpha: 1).cgColor
+        shapeLayer.actions = ["path": NSNull(), "bounds": NSNull(), "position": NSNull()]
+        shapeLayer.contentsScale = NSScreen.main?.backingScaleFactor ?? 2
+        layer?.addSublayer(shapeLayer)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) is not supported")
+    }
+
+    override func layout() {
+        super.layout()
+        updatePath()
+    }
+
+    func syncLayout() {
+        needsLayout = true
+        layoutSubtreeIfNeeded()
+    }
+
+    private func updatePath() {
+        shapeLayer.frame = bounds
+        let topRadius: CGFloat = hasNotch ? 0 : 22
+        let bottomRadius: CGFloat = expanded ? 25 : 19
+        let width = bounds.width
+        let height = bounds.height
+        let top = min(topRadius, min(width / 2, height / 2))
+        let bottom = min(bottomRadius, min(width / 2, height / 2))
+        let path = CGMutablePath()
+
+        // NSView layers use a bottom-left origin, so build the shape in that
+        // coordinate space instead of reusing SwiftUI's top-left Path.
+        path.move(to: CGPoint(x: top, y: height))
+        path.addLine(to: CGPoint(x: width - top, y: height))
+        if top > 0 {
+            path.addArc(
+                center: CGPoint(x: width - top, y: height - top),
+                radius: top,
+                startAngle: .pi / 2,
+                endAngle: 0,
+                clockwise: true
+            )
+        }
+        path.addLine(to: CGPoint(x: width, y: bottom))
+        path.addArc(
+            center: CGPoint(x: width - bottom, y: bottom),
+            radius: bottom,
+            startAngle: 0,
+            endAngle: -.pi / 2,
+            clockwise: true
+        )
+        path.addLine(to: CGPoint(x: bottom, y: 0))
+        path.addArc(
+            center: CGPoint(x: bottom, y: bottom),
+            radius: bottom,
+            startAngle: -.pi / 2,
+            endAngle: .pi,
+            clockwise: true
+        )
+        if top > 0 {
+            path.addLine(to: CGPoint(x: 0, y: height - top))
+            path.addArc(
+                center: CGPoint(x: top, y: height - top),
+                radius: top,
+                startAngle: .pi,
+                endAngle: .pi / 2,
+                clockwise: true
+            )
+        } else {
+            path.addLine(to: CGPoint(x: 0, y: height))
+        }
+        path.closeSubpath()
+        shapeLayer.path = path
+    }
+}
+
 final class TrackingHostingView<Content: View>: NSHostingView<Content> {
     var onHoverChange: ((Bool) -> Void)?
     private var trackingAreaInstalled = false
@@ -144,6 +231,7 @@ final class PetWindowController: NSWindowController {
     private var frameAnimationStart: Date?
     private var frameAnimationFrom: NSRect = .zero
     private var frameAnimationTo: NSRect = .zero
+    private var backdropView: NotchBackdropView?
 
     private var collapsedSize: NSSize {
         NSSize(width: max(360, notchWidth + 220), height: 58)
@@ -221,14 +309,29 @@ final class PetWindowController: NSWindowController {
 
     private func installHostingView() {
         guard let panel = window else { return }
+        let container = NSView(frame: panel.contentRect(forFrameRect: panel.frame))
+        container.autoresizingMask = [.width, .height]
+        container.wantsLayer = true
+        container.layer?.backgroundColor = NSColor.clear.cgColor
+
+        let backdrop = NotchBackdropView(frame: container.bounds)
+        backdrop.autoresizingMask = [.width, .height]
+        backdrop.expanded = model.expanded
+        backdrop.hasNotch = model.hasNotch
+        container.addSubview(backdrop)
+
         let hosting = TrackingHostingView(rootView: PetView(model: model))
         hosting.onHoverChange = { [weak model] hovering in
             model?.setHovering(hovering)
         }
+        hosting.frame = container.bounds
         hosting.autoresizingMask = [.width, .height]
         hosting.wantsLayer = true
         hosting.layer?.backgroundColor = NSColor.clear.cgColor
-        panel.contentView = hosting
+        container.addSubview(hosting)
+
+        panel.contentView = container
+        backdropView = backdrop
     }
 
     private func configure(_ panel: NSPanel) {
@@ -252,6 +355,9 @@ final class PetWindowController: NSWindowController {
         guard let panel = window else { return }
         let size = expanded ? expandedSize : collapsedSize
         let target = Self.frame(for: size, on: currentScreen)
+        backdropView?.expanded = expanded
+        backdropView?.hasNotch = currentScreen.safeAreaInsets.top > 0
+        backdropView?.syncLayout()
         let shouldAnimate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
         if shouldAnimate {
             animateFrame(to: target)
@@ -285,7 +391,9 @@ final class PetWindowController: NSWindowController {
             stopFrameAnimation()
             return
         }
-        let duration = 0.2
+        let configuredDuration = ProcessInfo.processInfo.environment["DSH_NOTCH_PET_ANIMATION_DURATION"]
+            .flatMap(Double.init) ?? 0.2
+        let duration = max(0.05, configuredDuration)
         let progress = min(1, Date().timeIntervalSince(start) / duration)
         let eased = 1 - pow(1 - progress, 3)
         let width = frameAnimationFrom.width + (frameAnimationTo.width - frameAnimationFrom.width) * eased
@@ -301,6 +409,7 @@ final class PetWindowController: NSWindowController {
             height: height
         )
         panel.setFrame(frame, display: true)
+        backdropView?.syncLayout()
         if progress >= 1 {
             let target = frameAnimationTo
             stopFrameAnimation()
@@ -321,6 +430,7 @@ final class PetWindowController: NSWindowController {
         currentScreen = Self.preferredScreen()
         notchWidth = Self.notchWidth(on: currentScreen)
         model.setHasNotch(currentScreen.safeAreaInsets.top > 0)
+        backdropView?.hasNotch = currentScreen.safeAreaInsets.top > 0
         resize(expanded: model.expanded, animated: false)
     }
 
