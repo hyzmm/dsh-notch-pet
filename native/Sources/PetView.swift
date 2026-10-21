@@ -22,8 +22,8 @@ struct PetView: View {
                 } else {
                     collapsedContent
                         .transition(.opacity)
+                    bottomProgress
                 }
-                bottomProgress
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .contentShape(Rectangle())
