@@ -37,7 +37,7 @@ The pet shows the most recently active root session. A subagent-heavy run still 
 - `todo_write` completion, falling back to goal rounds
 - the current todo, goal objective, or last error
 
-No percentage is invented when DSH has no countable unit. The bar stays indeterminate while the agent is active. When the agent is idle, the indeterminate bar is hidden and any determinate bar is frozen, so the notch does not keep flashing.
+No percentage is invented when DSH has no countable unit. The bar stays indeterminate while the agent is active. When the agent is idle, the indeterminate bar is hidden and any determinate bar is frozen, so the notch does not keep flashing. Active progress runs at 60 fps, and expanding or collapsing the panel uses an animated notch transition.
 
 ## Controls
 

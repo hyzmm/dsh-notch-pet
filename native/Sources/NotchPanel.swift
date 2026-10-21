@@ -6,9 +6,11 @@ final class PetViewModel: ObservableObject {
     @Published private(set) var payload = PetPayload.empty
     @Published private(set) var connected = false
     @Published private(set) var pinned = false
-    @Published var expanded = false
+    @Published private(set) var layoutRevision = 0
     @Published private(set) var celebrating = false
     @Published private(set) var hasNotch = true
+
+    private(set) var expanded = false
 
     var pointerInside: (() -> Bool)?
 
@@ -44,14 +46,14 @@ final class PetViewModel: ObservableObject {
     }
 
     func beginPeek() {
-        expanded = true
+        setExpanded(true)
         scheduleCollapse(after: 2.8)
     }
 
     func setHovering(_ hovering: Bool) {
         if hovering {
             collapseWork?.cancel()
-            expanded = true
+            setExpanded(true)
             return
         }
         guard !pinned else { return }
@@ -62,10 +64,16 @@ final class PetViewModel: ObservableObject {
         pinned.toggle()
         collapseWork?.cancel()
         if pinned {
-            expanded = true
+            setExpanded(true)
         } else {
             scheduleCollapse(after: 0.45)
         }
+    }
+
+    private func setExpanded(_ value: Bool) {
+        guard expanded != value else { return }
+        expanded = value
+        layoutRevision &+= 1
     }
 
     private func scheduleCollapse(after delay: TimeInterval) {
@@ -76,7 +84,7 @@ final class PetViewModel: ObservableObject {
                 self.scheduleCollapse(after: 0.4)
                 return
             }
-            self.expanded = false
+            self.setExpanded(false)
         }
         collapseWork = work
         DispatchQueue.main.asyncAfter(deadline: .now() + delay, execute: work)
@@ -164,11 +172,11 @@ final class PetWindowController: NSWindowController {
         configure(panel)
         installHostingView()
 
-        expandedObservation = model.$expanded
-            .removeDuplicates()
-            .sink { [weak self] expanded in
+        expandedObservation = model.$layoutRevision
+            .sink { [weak self] _ in
                 DispatchQueue.main.async {
-                    self?.resize(expanded: expanded)
+                    guard let self else { return }
+                    self.resize(expanded: self.model.expanded, animated: true)
                 }
             }
 
@@ -235,20 +243,20 @@ final class PetWindowController: NSWindowController {
         panel.titlebarAppearsTransparent = true
     }
 
-    private func resize(expanded: Bool) {
+    private func resize(expanded: Bool, animated: Bool) {
         guard let panel = window else { return }
         let size = expanded ? expandedSize : collapsedSize
         let target = Self.frame(for: size, on: currentScreen)
-        panel.setFrame(target, display: true, animate: false)
-        installHostingView()
-        AppLog.write("panel resize expanded=\(expanded) frame=\(NSStringFromRect(target))")
+        let shouldAnimate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
+        panel.setFrame(target, display: true, animate: shouldAnimate)
+        AppLog.write("panel resize expanded=\(expanded) animated=\(shouldAnimate) frame=\(NSStringFromRect(target))")
     }
 
     private func screenConfigurationChanged() {
         currentScreen = Self.preferredScreen()
         notchWidth = Self.notchWidth(on: currentScreen)
         model.setHasNotch(currentScreen.safeAreaInsets.top > 0)
-        resize(expanded: model.expanded)
+        resize(expanded: model.expanded, animated: false)
     }
 
     private static func notchWidth(on screen: NSScreen) -> CGFloat {

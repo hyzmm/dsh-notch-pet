@@ -18,14 +18,20 @@ struct PetView: View {
                 glow(in: proxy.size)
                 if model.expanded {
                     expandedContent
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                 } else {
                     collapsedContent
+                        .transition(.opacity)
                 }
                 bottomProgress
             }
             .frame(width: proxy.size.width, height: proxy.size.height)
             .contentShape(Rectangle())
             .contextMenu { menu }
+            .animation(
+                reduceMotion ? nil : .easeOut(duration: 0.18),
+                value: model.expanded
+            )
         }
         .frame(minWidth: 300, maxWidth: .infinity, minHeight: 48, maxHeight: .infinity)
         .background(Color.clear)
@@ -406,7 +412,7 @@ struct ProgressTrack: View {
     var compact: Bool = false
 
     @State private var tick = 0
-    private let motionTimer = Timer.publish(every: 0.13, on: .main, in: .common).autoconnect()
+    private let motionTimer = Timer.publish(every: 1.0 / 60.0, on: .main, in: .common).autoconnect()
 
     var body: some View {
         GeometryReader { proxy in
@@ -418,7 +424,7 @@ struct ProgressTrack: View {
                 if let fraction {
                     let width = max(height, proxy.size.width * min(1, max(0, fraction)))
                     let shimmerWidth = min(28, max(10, width * 0.45))
-                    let unit = reduceMotion ? 0.35 : cycle(tick, step: 0.22)
+                    let unit = reduceMotion ? 0.35 : cycle(tick, step: 0.00925)
                     let offset = -shimmerWidth + unit * (width + shimmerWidth)
                     Capsule()
                         .fill(
@@ -446,7 +452,7 @@ struct ProgressTrack: View {
                         .clipShape(Capsule())
                 } else {
                     let bandWidth = max(24, proxy.size.width * 0.34)
-                    let unit = reduceMotion ? 0.4 : cycle(tick, step: 0.28)
+                    let unit = reduceMotion ? 0.4 : cycle(tick, step: 0.0098)
                     let offset = -bandWidth + unit * (proxy.size.width + bandWidth)
                     Capsule()
                         .fill(
@@ -481,12 +487,12 @@ struct PetAvatar: View {
     let reduceMotion: Bool
 
     @State private var tick = 0
-    private let motionTimer = Timer.publish(every: 0.14, on: .main, in: .common).autoconnect()
+    private let motionTimer = Timer.publish(every: 0.08, on: .main, in: .common).autoconnect()
 
     private var accent: Color { PetTheme.color(for: phase) }
 
     var body: some View {
-        let time = Double(tick) * 0.14
+        let time = Double(tick) * 0.08
         let bob = bobOffset(time: time)
         let blink = blinkScale(time: time)
         let eyeTravel = phase.isBusy && !reduceMotion ? sin(time * 1.7) * size * 0.018 : 0
