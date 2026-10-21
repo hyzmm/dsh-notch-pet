@@ -140,6 +140,10 @@ final class PetWindowController: NSWindowController {
     private var screenObserver: NSObjectProtocol?
     private var currentScreen: NSScreen
     private var notchWidth: CGFloat
+    private var frameAnimationTimer: Timer?
+    private var frameAnimationStart: Date?
+    private var frameAnimationFrom: NSRect = .zero
+    private var frameAnimationTo: NSRect = .zero
 
     private var collapsedSize: NSSize {
         NSSize(width: max(360, notchWidth + 220), height: 58)
@@ -206,6 +210,7 @@ final class PetWindowController: NSWindowController {
     }
 
     func shutdown() {
+        stopFrameAnimation()
         socketClient.stop()
         expandedObservation?.cancel()
         if let screenObserver {
@@ -248,11 +253,71 @@ final class PetWindowController: NSWindowController {
         let size = expanded ? expandedSize : collapsedSize
         let target = Self.frame(for: size, on: currentScreen)
         let shouldAnimate = animated && !NSWorkspace.shared.accessibilityDisplayShouldReduceMotion
-        panel.setFrame(target, display: true, animate: shouldAnimate)
+        if shouldAnimate {
+            animateFrame(to: target)
+        } else {
+            stopFrameAnimation()
+            panel.setFrame(target, display: true)
+        }
         AppLog.write("panel resize expanded=\(expanded) animated=\(shouldAnimate) frame=\(NSStringFromRect(target))")
     }
 
+    private func animateFrame(to target: NSRect) {
+        guard let panel = window else { return }
+        stopFrameAnimation()
+        frameAnimationFrom = panel.frame
+        frameAnimationTo = target
+        frameAnimationStart = Date()
+        let timer = Timer(timeInterval: 1.0 / 60.0, repeats: true) { [weak self] timer in
+            guard let self else {
+                timer.invalidate()
+                return
+            }
+            self.stepFrameAnimation()
+        }
+        RunLoop.main.add(timer, forMode: .common)
+        frameAnimationTimer = timer
+        stepFrameAnimation()
+    }
+
+    private func stepFrameAnimation() {
+        guard let panel = window, let start = frameAnimationStart else {
+            stopFrameAnimation()
+            return
+        }
+        let duration = 0.2
+        let progress = min(1, Date().timeIntervalSince(start) / duration)
+        let eased = 1 - pow(1 - progress, 3)
+        let width = frameAnimationFrom.width + (frameAnimationTo.width - frameAnimationFrom.width) * eased
+        let height = frameAnimationFrom.height + (frameAnimationTo.height - frameAnimationFrom.height) * eased
+        // Re-pin the top edge every tick. AppKit's built-in frame animation can
+        // interpolate origin and height independently and briefly expose the
+        // desktop above the notch.
+        let top = Self.topEdge(on: currentScreen)
+        let frame = NSRect(
+            x: currentScreen.frame.midX - width / 2,
+            y: top - height,
+            width: width,
+            height: height
+        )
+        panel.setFrame(frame, display: true)
+        if progress >= 1 {
+            let target = frameAnimationTo
+            stopFrameAnimation()
+            panel.setFrame(target, display: true)
+        }
+    }
+
+    private func stopFrameAnimation() {
+        frameAnimationTimer?.invalidate()
+        frameAnimationTimer = nil
+        frameAnimationStart = nil
+        frameAnimationFrom = .zero
+        frameAnimationTo = .zero
+    }
+
     private func screenConfigurationChanged() {
+        stopFrameAnimation()
         currentScreen = Self.preferredScreen()
         notchWidth = Self.notchWidth(on: currentScreen)
         model.setHasNotch(currentScreen.safeAreaInsets.top > 0)
@@ -264,6 +329,10 @@ final class PetWindowController: NSWindowController {
               let left = screen.auxiliaryTopLeftArea,
               let right = screen.auxiliaryTopRightArea else { return 0 }
         return max(0, screen.frame.width - left.width - right.width)
+    }
+
+    private static func topEdge(on screen: NSScreen) -> CGFloat {
+        screen.safeAreaInsets.top > 0 ? screen.frame.maxY : screen.frame.maxY - 6
     }
 
     private static func preferredScreen() -> NSScreen {

@@ -18,7 +18,7 @@ struct PetView: View {
                 glow(in: proxy.size)
                 if model.expanded {
                     expandedContent
-                        .transition(.opacity.combined(with: .move(edge: .top)))
+                        .transition(.opacity)
                 } else {
                     collapsedContent
                         .transition(.opacity)
