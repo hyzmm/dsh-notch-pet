@@ -4,7 +4,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 APP="$ROOT/native/DSHNotchPet.app"
 BUILD="$ROOT/native/.build"
-SOURCES=("$ROOT/native/Sources/AppDelegate.swift" "$ROOT/native/Sources/AppLog.swift" "$ROOT/native/Sources/DSHLauncher.swift" "$ROOT/native/Sources/L10n.swift" "$ROOT/native/Sources/Models.swift" "$ROOT/native/Sources/NotchPanel.swift" "$ROOT/native/Sources/PetView.swift" "$ROOT/native/Sources/SocketClient.swift" "$ROOT/native/Sources/main.swift")
+SOURCES=("$ROOT/native/Sources/"*.swift)
 
 rm -rf "$APP" "$BUILD"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources" "$BUILD"

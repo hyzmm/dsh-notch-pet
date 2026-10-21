@@ -4,12 +4,21 @@ import SwiftUI
 
 struct PetView: View {
     @ObservedObject var model: PetViewModel
+    @ObservedObject private var theme = PetTheme.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var phase: PetPhase { model.phase }
-    private var accent: Color { PetTheme.color(for: phase) }
+    private var palette: PetPalette { theme.palette }
+    private var accent: Color { palette.color(for: phase) }
     private var hasProgress: Bool { model.focus?.progress?.fraction != nil }
     private var showsProgress: Bool { phase.isBusy || hasProgress }
+
+    private var settingsPresented: Binding<Bool> {
+        Binding(
+            get: { model.settingsOpen },
+            set: { model.setSettingsOpen($0) }
+        )
+    }
 
     var body: some View {
         GeometryReader { proxy in
@@ -28,6 +37,9 @@ struct PetView: View {
             .frame(width: proxy.size.width, height: proxy.size.height)
             .contentShape(Rectangle())
             .contextMenu { menu }
+            .popover(isPresented: settingsPresented, arrowEdge: .top) {
+                AccentSettingsView(onClose: { model.setSettingsOpen(false) })
+            }
             .animation(
                 reduceMotion ? nil : .easeOut(duration: 0.18),
                 value: model.expanded
@@ -97,7 +109,7 @@ struct PetView: View {
                 LiveProgressRow(
                     focus: model.focus,
                     phase: phase,
-                    accent: accent,
+                    palette: palette,
                     compact: true,
                     reduceMotion: reduceMotion
                 )
@@ -108,7 +120,8 @@ struct PetView: View {
                 size: 28,
                 phase: phase,
                 celebrating: model.celebrating,
-                reduceMotion: reduceMotion
+                reduceMotion: reduceMotion,
+                palette: palette
             )
             .offset(y: 1)
             .onTapGesture { model.togglePinned() }
@@ -126,7 +139,8 @@ struct PetView: View {
                     size: 58,
                     phase: phase,
                     celebrating: model.celebrating,
-                    reduceMotion: reduceMotion
+                    reduceMotion: reduceMotion,
+                    palette: palette
                 )
                 .onTapGesture { model.togglePinned() }
                 .accessibilityLabel("\(L10n.phase(phase)), \(L10n.activity(model.focus))")
@@ -144,7 +158,7 @@ struct PetView: View {
                     LiveProgressRow(
                         focus: model.focus,
                         phase: phase,
-                        accent: accent,
+                        palette: palette,
                         compact: false,
                         reduceMotion: reduceMotion
                     )
@@ -179,6 +193,14 @@ struct PetView: View {
                         .font(.system(size: 8.5, weight: .medium, design: .monospaced))
                         .foregroundStyle(.white.opacity(0.28))
                         .lineLimit(1)
+                }
+
+                IconButton(
+                    systemName: "paintpalette",
+                    label: L10n.accentSettings,
+                    accent: accent
+                ) {
+                    model.setSettingsOpen(!model.settingsOpen)
                 }
 
                 IconButton(
@@ -249,7 +271,12 @@ struct PetView: View {
         Button(L10n.openDSH) { DSHLauncher.open(origin: model.originURL) }
         Button(model.pinned ? L10n.unpin : L10n.pin) { model.togglePinned() }
         Divider()
-        Button(L10n.quitPet) { NSApp.terminate(nil) }
+        Button(L10n.accentSettings) { model.setSettingsOpen(true) }
+        Divider()
+        Button(L10n.quitPet) {
+            AppLog.write("menu: quit")
+            NSApp.terminate(nil)
+        }
     }
 
 }
@@ -310,10 +337,11 @@ struct NotchShellShape: Shape {
 struct LiveProgressRow: View {
     let focus: SessionFocus?
     let phase: PetPhase
-    let accent: Color
+    let palette: PetPalette
     var compact = false
     var reduceMotion = false
 
+    private var accent: Color { palette.color(for: phase) }
     private var active: Bool { phase.isBusy }
     private var text: String { L10n.liveProgress(focus, compact: compact) }
     private var running: Bool { focus?.running == true }
@@ -322,8 +350,8 @@ struct LiveProgressRow: View {
 
     private var labelColor: Color {
         switch phase {
-        case .error: return PetTheme.red.opacity(0.92)
-        case .waiting: return PetTheme.amber.opacity(0.92)
+        case .error: return palette.error.opacity(0.92)
+        case .waiting: return palette.waiting.opacity(0.92)
         default: return .white.opacity(active ? 0.72 : 0.48)
         }
     }
@@ -400,7 +428,7 @@ struct LoadingIndicator: View {
                     .rotationEffect(.degrees(reduceMotion ? 0 : Double(tick) * 12))
             } else {
                 Circle()
-                    .fill(PetTheme.color(for: phase).opacity(0.72))
+                    .fill(accent.opacity(0.72))
                     .frame(width: size * 0.42, height: size * 0.42)
             }
         }
@@ -540,11 +568,12 @@ struct PetAvatar: View {
     let phase: PetPhase
     let celebrating: Bool
     let reduceMotion: Bool
+    let palette: PetPalette
 
     @State private var tick = 0
     private let motionTimer = Timer.publish(every: 0.08, on: .main, in: .common).autoconnect()
 
-    private var accent: Color { PetTheme.color(for: phase) }
+    private var accent: Color { palette.color(for: phase) }
 
     var body: some View {
         let time = Double(tick) * 0.08
@@ -603,7 +632,7 @@ struct PetAvatar: View {
                             colors: [
                                 accent.opacity(0.98),
                                 accent.opacity(0.82),
-                                PetTheme.accent.opacity(0.88),
+                                palette.shade(for: phase).opacity(0.92),
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing

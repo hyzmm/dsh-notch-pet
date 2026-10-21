@@ -45,8 +45,15 @@ No percentage is invented when DSH has no countable unit: without one, the bar s
 
 - Hover: expand
 - Click the pet: pin or unpin the panel
+- Palette button in the expanded footer: open the accent settings
 - Open DSH: focuses the running DSH desktop app; falls back to the web origin only when the desktop app is not installed
-- Right click: open DSH, pin, or quit the pet
+- Right click: open DSH, pin, change the accent, or quit the pet
+
+## Accent color
+
+The expanded panel has a palette button, and the right-click menu has **Accent Color…**. The popover offers six presets — Aurora (the default blue), Glacier, Iris, Sakura, Tangerine, and Mint — plus a custom picker with hue, saturation, and brightness controls.
+
+The accent recolors the working pet, the resting pet, the glow behind it, the loading arc, the progress bar, and the status dot. Waiting stays amber, errors stay red, and a completed turn stays mint so the status is still readable with any accent. Changes apply live, survive relaunches, and are stored in the app's `UserDefaults` (`local.dsh.notchpet`). **Reset** returns to Aurora.
 
 ## Requirements
 

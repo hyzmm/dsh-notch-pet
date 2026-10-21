@@ -6,6 +6,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
+        // The notch panel and its accent popover are designed for the dark
+        // notch; keep native chrome (popovers, the color panel) in dark mode.
+        NSApp.appearance = NSAppearance(named: .darkAqua)
         terminateDuplicateInstances()
 
         let arguments = CommandLine.arguments
@@ -34,7 +37,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
-        true
+        // The accent popover is an auxiliary window; closing it must not quit
+        // the overlay. The socket watchdog owns the app's lifetime instead.
+        false
     }
 
     func applicationSupportsSecureRestorableState(_ app: NSApplication) -> Bool {

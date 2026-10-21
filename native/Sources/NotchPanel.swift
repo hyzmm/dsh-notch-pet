@@ -9,6 +9,7 @@ final class PetViewModel: ObservableObject {
     @Published private(set) var layoutRevision = 0
     @Published private(set) var celebrating = false
     @Published private(set) var hasNotch = true
+    @Published private(set) var settingsOpen = false
 
     private(set) var expanded = false
 
@@ -56,8 +57,20 @@ final class PetViewModel: ObservableObject {
             setExpanded(true)
             return
         }
-        guard !pinned else { return }
+        guard !pinned, !settingsOpen else { return }
         scheduleCollapse(after: 0.32)
+    }
+
+    func setSettingsOpen(_ value: Bool) {
+        guard settingsOpen != value else { return }
+        settingsOpen = value
+        AppLog.write("settings \(value ? "opened" : "closed")")
+        if value {
+            collapseWork?.cancel()
+            setExpanded(true)
+        } else if !pinned {
+            scheduleCollapse(after: 0.25)
+        }
     }
 
     func togglePinned() {
@@ -79,7 +92,7 @@ final class PetViewModel: ObservableObject {
     private func scheduleCollapse(after delay: TimeInterval) {
         collapseWork?.cancel()
         let work = DispatchWorkItem { [weak self] in
-            guard let self, !self.pinned else { return }
+            guard let self, !self.pinned, !self.settingsOpen else { return }
             if self.pointerInside?() == true {
                 self.scheduleCollapse(after: 0.4)
                 return
@@ -477,33 +490,5 @@ extension PetWindowController: SocketClientDelegate {
     func socketClientDidGiveUp(_ client: SocketClient) {
         AppLog.write("host unavailable, terminating")
         NSApp.terminate(nil)
-    }
-}
-
-enum PetTheme {
-    static let accent = Color(red: 0.34, green: 0.47, blue: 1.0)
-    static let cyan = Color(red: 0.27, green: 0.82, blue: 0.98)
-    static let mint = Color(red: 0.35, green: 0.94, blue: 0.68)
-    static let amber = Color(red: 1.0, green: 0.71, blue: 0.30)
-    static let red = Color(red: 1.0, green: 0.39, blue: 0.45)
-    static let idle = Color(red: 0.48, green: 0.57, blue: 0.78)
-
-    static func color(for phase: PetPhase) -> Color {
-        switch phase {
-        case .running, .thinking, .tool: return cyan
-        case .waiting: return amber
-        case .done: return mint
-        case .error: return red
-        case .idle: return idle
-        }
-    }
-
-    static func gradient(for phase: PetPhase) -> LinearGradient {
-        let base = color(for: phase)
-        return LinearGradient(
-            colors: [base, phase == .idle ? accent.opacity(0.75) : accent],
-            startPoint: .topLeading,
-            endPoint: .bottomTrailing
-        )
     }
 }

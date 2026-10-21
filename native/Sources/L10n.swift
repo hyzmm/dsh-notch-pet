@@ -169,10 +169,29 @@ enum L10n {
         return "\(total / 3600)h \(total % 3600 / 60)m"
     }
 
+    static func accentPresetName(_ id: String) -> String {
+        switch id {
+        case "aurora": return t("Aurora", "极光蓝")
+        case "glacier": return t("Glacier", "冰川青")
+        case "iris": return t("Iris", "鸢尾紫")
+        case "sakura": return t("Sakura", "樱花粉")
+        case "tangerine": return t("Tangerine", "落日橙")
+        case "mint": return t("Mint", "薄荷绿")
+        default: return id.capitalized
+        }
+    }
+
     static let openDSH = t("Open DSH", "打开 DSH")
     static let open = t("Open", "打开")
     static let quitPet = t("Quit Notch Pet", "退出刘海宠物")
     static let pin = t("Pin panel", "固定面板")
     static let unpin = t("Unpin panel", "取消固定")
     static let disconnected = t("Disconnected", "已断开")
+    static let accentColor = t("Accent color", "主色调")
+    static let accentHint = t("Tints the pet, glow, and progress", "为宠物、光晕和进度条上色")
+    static let accentSettings = t("Accent Color…", "主色调…")
+    static let customColor = t("Custom color", "自定义颜色")
+    static let customHint = t("Pick any color", "点击色块任选颜色")
+    static let reset = t("Reset", "恢复默认")
+    static let close = t("Close", "关闭")
 }
