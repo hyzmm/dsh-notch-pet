@@ -1,0 +1,3 @@
+- insert:
+    - id: dsh-notch-pet
+      name: '@local/dsh-notch-pet'
