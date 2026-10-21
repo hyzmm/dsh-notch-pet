@@ -30,6 +30,10 @@ const CURRENT_FILE = join(SUPPORT_DIR, 'current.json')
 const MAX_SESSIONS = 6
 const MAX_TITLE_CHARS = 120
 const MAX_TODOS = 12
+const MAX_ACTIVITY_CHARS = 240
+const MAX_SHORT_ACTIVITY_CHARS = 120
+const MAX_REASONING_CHARS = 600
+const MAX_STREAM_CHARS = 4000
 
 export function apply(ctx) {
   if (process.platform !== 'darwin') return
@@ -49,6 +53,7 @@ class NotchPetBridge {
   #socketPath = ''
   #child
   #publishTimer
+  #streamPublishTimer
   #heartbeat
   #stopping = false
 
@@ -84,6 +89,7 @@ class NotchPetBridge {
     if (this.#stopping) return
     this.#stopping = true
     clearTimeout(this.#publishTimer)
+    clearTimeout(this.#streamPublishTimer)
     clearInterval(this.#heartbeat)
     for (const dispose of this.#disposers.splice(0)) {
       try {
@@ -149,6 +155,12 @@ class NotchPetBridge {
       this.#schedulePublish()
     })
 
+    on('agent/assistant-stream', ({ agent, frame }) => {
+      const state = this.#states.get(String(agent.id))
+      if (!state) return
+      if (this.#applyAssistantFrame(state, frame)) this.#scheduleStreamPublish()
+    })
+
     on('goal/changed', ({ agent, change }) => {
       const state = this.#ensureState(agent)
       state.goal = change?.goal ?? null
@@ -178,6 +190,7 @@ class NotchPetBridge {
       state.updatedAt = events.at(-1)?.time ?? state.createdAt
       state.model = session?.requestContext?.()?.model ?? state.model
       this.#refreshGoal(agent)
+      this.#refreshTitle(state)
     }
   }
 
@@ -190,6 +203,7 @@ class NotchPetBridge {
     const state = {
       id,
       title: '',
+      promptTitle: '',
       cwd: header?.cwd ?? '',
       root: header?.origin !== 'subagent',
       agentPreset: header?.agentPreset ?? '',
@@ -201,6 +215,8 @@ class NotchPetBridge {
       activeTools: new Map(),
       lastTool: '',
       lastError: null,
+      reasoning: '',
+      stream: null,
       goal: null,
       todos: [],
       turnStartedAt: 0,
@@ -209,6 +225,7 @@ class NotchPetBridge {
       createdAt: header?.createdAt ?? Date.now(),
     }
     this.#states.set(id, state)
+    this.#refreshTitle(state)
     return state
   }
 
@@ -217,10 +234,15 @@ class NotchPetBridge {
     const time = Number(event.time) || Date.now()
     switch (event.type) {
       case 'user/message': {
-        if (!state.title) {
-          state.title = clip(textOf(event.data?.content), MAX_TITLE_CHARS)
+        if (!state.promptTitle) {
+          state.promptTitle = clip(oneLine(textOf(event.data?.content)), MAX_TITLE_CHARS)
         }
+        this.#refreshTitle(state)
         state.updatedAt = time
+        break
+      }
+      case 'session/title': {
+        this.#refreshTitle(state)
         break
       }
       case 'turn/start': {
@@ -231,6 +253,8 @@ class NotchPetBridge {
         state.turnStartedAt = time
         state.lastError = null
         state.activeTools.clear()
+        state.reasoning = ''
+        state.stream = null
         state.updatedAt = time
         break
       }
@@ -241,6 +265,8 @@ class NotchPetBridge {
         break
       }
       case 'assistant/message': {
+        const reasoning = reasoningOf(event.data?.message?.content)
+        if (reasoning) state.reasoning = reasoningPreview(reasoning)
         state.phase = 'thinking'
         state.updatedAt = time
         break
@@ -248,7 +274,13 @@ class NotchPetBridge {
       case 'tool/call': {
         const callId = String(event.data?.callId ?? '')
         const name = String(event.data?.name ?? 'tool')
-        if (callId) state.activeTools.set(callId, { name, startedAt: time })
+        if (callId) {
+          state.activeTools.set(callId, {
+            name,
+            startedAt: time,
+            rawArguments: event.data?.arguments,
+          })
+        }
         state.lastTool = name
         state.phase = name === 'ask_user_question' ? 'waiting' : 'tool'
         state.updatedAt = time
@@ -314,11 +346,54 @@ class NotchPetBridge {
     }
   }
 
+  #refreshTitle(state) {
+    const session = this.#sessionFor(state.id)
+    if (!session) return
+    const titles = this.#service('sessionTitle')
+    if (!titles?.get) return
+    try {
+      const title = oneLine(titles.get(session)?.title ?? '')
+      if (title) state.title = clip(title, MAX_TITLE_CHARS)
+    } catch {}
+  }
+
+  #applyAssistantFrame(state, frame) {
+    if (!frame || typeof frame !== 'object') return false
+    if (frame.type === 'start') {
+      state.stream = { attemptId: frame.attemptId, reasoning: '' }
+      state.reasoning = ''
+      return false
+    }
+    if (frame.type !== 'chunk') return false
+    const chunk = frame.chunk
+    if (chunk?.type !== 'reasoning-delta' || typeof chunk.text !== 'string' || !chunk.text) {
+      return false
+    }
+    if (!state.stream || state.stream.attemptId !== frame.attemptId) {
+      state.stream = { attemptId: frame.attemptId, reasoning: '' }
+    }
+    state.stream.reasoning = appendTail(state.stream.reasoning, chunk.text, MAX_STREAM_CHARS)
+    const reasoning = reasoningPreview(state.stream.reasoning)
+    if (!reasoning) return false
+    state.reasoning = reasoning
+    state.updatedAt = Date.now()
+    return true
+  }
+
   #schedulePublish() {
     if (this.#stopping) return
     clearTimeout(this.#publishTimer)
     this.#publishTimer = setTimeout(() => this.#publish(), 120)
     this.#publishTimer.unref?.()
+  }
+
+  #scheduleStreamPublish() {
+    if (this.#stopping || this.#streamPublishTimer) return
+    this.#streamPublishTimer = setTimeout(() => {
+      this.#streamPublishTimer = undefined
+      this.#publish()
+    }, 90)
+    this.#streamPublishTimer.unref?.()
   }
 
   #publish({ immediate = false } = {}) {
@@ -336,6 +411,7 @@ class NotchPetBridge {
 
   #snapshot(now) {
     const states = [...this.#states.values()]
+    for (const state of states) this.#refreshTitle(state)
     const running = states.filter((state) => state.running)
     const roots = states.filter((state) => state.root)
     const pool = running.length > 0 ? running : roots.length > 0 ? roots : states
@@ -352,7 +428,7 @@ class NotchPetBridge {
       .slice(0, MAX_SESSIONS)
       .map((state) => ({
         id: state.id,
-        title: sessionTitle(state),
+        title: effectiveTitle(state),
         running: state.running,
         phase: effectivePhase(state, now),
         tool: activeToolName(state),
@@ -471,6 +547,18 @@ function activeToolName(state) {
   return tools[0]?.name ?? ''
 }
 
+function activeToolActivity(state) {
+  const tools = [...state.activeTools.values()].sort((a, b) => b.startedAt - a.startedAt)
+  const tool = tools[0]
+  if (!tool) return null
+  // Parse lazily: a write call can carry a whole file in its arguments, and
+  // most replayed tool calls are already finished and never need their detail.
+  if (tool.activity === undefined) {
+    tool.activity = describeTool(tool.name, tool.rawArguments, state.cwd)
+  }
+  return tool.activity ?? null
+}
+
 function effectivePhase(state, now) {
   if (state.running) {
     if (activeToolName(state) === 'ask_user_question') return 'waiting'
@@ -493,6 +581,7 @@ function overallStatus(focus, activeCount, now) {
 function focusView(state, now) {
   const phase = effectivePhase(state, now)
   const tool = activeToolName(state)
+  const activity = activeToolActivity(state)
   const todos = state.todos ?? []
   const completedTodos = todos.filter((todo) => todo.status === 'completed').length
   const goal = state.goal
@@ -514,7 +603,8 @@ function focusView(state, now) {
   }
   return {
     id: state.id,
-    title: sessionTitle(state),
+    title: effectiveTitle(state),
+    reasoning: state.reasoning ? clip(state.reasoning, MAX_REASONING_CHARS) : '',
     cwd: state.cwd,
     root: state.root,
     agentPreset: state.agentPreset,
@@ -523,6 +613,14 @@ function focusView(state, now) {
     phase,
     tool,
     toolCount: state.activeTools.size,
+    activity: activity
+      ? {
+          kind: activity.kind,
+          detail: activity.detail,
+          detailShort: activity.detailShort,
+          tool: activity.tool,
+        }
+      : null,
     turn: state.turn,
     step: state.step,
     startedAt: state.turnStartedAt || 0,
@@ -543,8 +641,8 @@ function focusView(state, now) {
   }
 }
 
-function sessionTitle(state) {
-  const title = String(state.title ?? '').trim()
+function effectiveTitle(state) {
+  const title = oneLine(state.title || state.promptTitle || '')
   if (title) return title
   const folder = basename(String(state.cwd ?? ''))
   return folder || 'DSH session'
@@ -553,6 +651,145 @@ function sessionTitle(state) {
 function currentTodo(todos) {
   const active = todos.find((todo) => todo.status === 'in_progress')
   return clip(active?.content ?? todos.find((todo) => todo.status === 'pending')?.content ?? '', 120)
+}
+
+/**
+ * Turn one tool call into the short "what the agent is doing right now" line
+ * that DSH itself shows above a turn. The detail is the concrete target (file,
+ * pattern, command, URL); `detailShort` is the version that fits the narrow
+ * notch strip.
+ */
+function describeTool(name, rawArguments, cwd) {
+  const args = parseArguments(rawArguments)
+  const file = firstOf(args.file_path, args.path, args.target_file)
+  switch (name) {
+    case 'read':
+      return toolActivity('read', file, cwd, name)
+    case 'read_image':
+      return toolActivity('readImage', file, cwd, name)
+    case 'write':
+      return toolActivity('write', file, cwd, name)
+    case 'edit':
+    case 'str_replace_editor':
+    case 'apply_patch':
+      return toolActivity('edit', file, cwd, name)
+    case 'grep':
+    case 'glob':
+      return toolActivity('search', firstOf(args.pattern, args.query, args.path), cwd, name)
+    case 'bash':
+    case 'pwsh':
+      return toolActivity('commands', firstOf(args.description, firstLine(args.command)), cwd, name)
+    case 'web_search':
+      return toolActivity(
+        'webSearch',
+        Array.isArray(args.queries) ? args.queries[0] : firstOf(args.query, args.q),
+        cwd,
+        name,
+      )
+    case 'web_fetch':
+      return toolActivity('webFetch', args.url, cwd, name)
+    case 'todo_write':
+      return toolActivity('plan', '', cwd, name)
+    case 'ask_user_question':
+      return toolActivity('questions', args.questions?.[0]?.question, cwd, name)
+    case 'subagent':
+    case 'subagent_fork':
+    case 'send_message':
+    case 'list_agents':
+    case 'interrupt_agent':
+    case 'workflow':
+      return toolActivity(
+        'subagents',
+        firstOf(args.description, args.meta?.name, args.agent_id),
+        cwd,
+        name,
+      )
+    default:
+      return toolActivity('tools', name, cwd, name)
+  }
+}
+
+function toolActivity(kind, detail, cwd, tool) {
+  const clean = oneLine(detail)
+  return {
+    kind,
+    detail: clip(clean, MAX_ACTIVITY_CHARS),
+    detailShort: clip(shortenDetail(clean, cwd), MAX_SHORT_ACTIVITY_CHARS),
+    tool,
+  }
+}
+
+function shortenDetail(detail, cwd) {
+  if (!detail) return ''
+  const base = String(cwd ?? '').replace(/\/+$/, '')
+  if (base && detail.startsWith(`${base}/`)) return detail.slice(base.length + 1)
+  const home = homedir()
+  if (detail.startsWith(`${home}/`)) return `~${detail.slice(home.length)}`
+  return detail
+}
+
+function firstOf(...values) {
+  for (const value of values) {
+    if (typeof value === 'string' && value.trim()) return value
+  }
+  return ''
+}
+
+function firstLine(text) {
+  return String(text ?? '').split('\n')[0]
+}
+
+function oneLine(text) {
+  return String(text ?? '').replace(/\s+/g, ' ').trim()
+}
+
+function appendTail(text, delta, max) {
+  const next = `${text}${delta}`
+  if (next.length <= max) return next
+  let tail = next.slice(-max)
+  if (/^[\uDC00-\uDFFF]/.test(tail)) tail = tail.slice(1)
+  return tail
+}
+
+function reasoningPreview(text) {
+  const plain = plainText(text)
+  if (!plain) return ''
+  let tail = plain.length > MAX_REASONING_CHARS ? plain.slice(-MAX_REASONING_CHARS) : plain
+  if (/^[\uDC00-\uDFFF]/.test(tail)) tail = tail.slice(1)
+  const boundary = tail.search(/[.!?。！？]/)
+  if (boundary >= 0 && boundary < 160) tail = tail.slice(boundary + 1)
+  return tail.trim()
+}
+
+function plainText(text) {
+  return oneLine(
+    String(text ?? '')
+      .replace(/```[^\n]*\n?/g, ' ')
+      .replace(/```/g, ' ')
+      .replace(/`([^`]*)`/g, '$1')
+      .replace(/!\[[^\]]*\]\([^)]*\)/g, ' ')
+      .replace(/\[([^\]]+)\]\([^)]*\)/g, '$1')
+      .replace(/^#{1,6}\s+/gm, '')
+      .replace(/(\*\*|__|~~)/g, ''),
+  )
+}
+
+function reasoningOf(blocks) {
+  if (!Array.isArray(blocks)) return ''
+  return blocks
+    .filter((block) => block?.type === 'reasoning' && typeof block.text === 'string')
+    .map((block) => block.text)
+    .join(' ')
+}
+
+function parseArguments(raw) {
+  if (typeof raw !== 'string' || raw.trim() === '') return {}
+  try {
+    const parsed = JSON.parse(raw)
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
+  } catch {
+    return {}
+  }
 }
 
 function parseTodos(raw) {

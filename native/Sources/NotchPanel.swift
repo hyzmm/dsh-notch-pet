@@ -238,7 +238,7 @@ final class PetWindowController: NSWindowController {
     }
 
     private var expandedSize: NSSize {
-        NSSize(width: max(390, notchWidth + 220), height: 150)
+        NSSize(width: max(390, notchWidth + 220), height: 168)
     }
 
     init(socketPath: String) {

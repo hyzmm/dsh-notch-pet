@@ -81,52 +81,41 @@ struct PetView: View {
     }
 
     private var collapsedContent: some View {
-        HStack(alignment: .center, spacing: 8) {
-            VStack(alignment: .leading, spacing: 2) {
+        HStack(alignment: .bottom, spacing: 10) {
+            VStack(alignment: .leading, spacing: 1.5) {
                 HStack(spacing: 5) {
                     Circle()
                         .fill(model.connected ? accent : Color.white.opacity(0.25))
                         .frame(width: 5, height: 5)
                         .shadow(color: accent.opacity(0.7), radius: 3)
-                    Text(L10n.phase(phase))
-                        .font(.system(size: 9.5, weight: .bold, design: .rounded))
-                        .tracking(0.5)
-                        .foregroundStyle(.white.opacity(0.84))
+                    Text(L10n.taskTitle(model.focus))
+                        .font(.system(size: 10, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.93))
                         .lineLimit(1)
+                        .truncationMode(.tail)
                 }
-                HStack(spacing: 3) {
-                    Text(L10n.shortActivity(model.focus))
-                        .lineLimit(1)
-                    if let focus = model.focus, focus.running == true, (focus.startedAt ?? 0) > 0 {
-                        Text("·")
-                        ElapsedText(
-                            startMilliseconds: focus.startedAt ?? 0,
-                            running: true,
-                            completedMilliseconds: focus.completedAt ?? 0
-                        )
-                    }
-                }
-                .font(.system(size: 8.5, weight: .medium, design: .monospaced))
-                .foregroundStyle(.white.opacity(0.48))
-                .lineLimit(1)
+                LiveProgressRow(
+                    focus: model.focus,
+                    phase: phase,
+                    accent: accent,
+                    compact: true,
+                    reduceMotion: reduceMotion
+                )
             }
-            .frame(width: 92, alignment: .leading)
-
-            Spacer(minLength: 0)
+            .frame(maxWidth: .infinity, alignment: .leading)
 
             PetAvatar(
-                size: 30,
+                size: 28,
                 phase: phase,
                 celebrating: model.celebrating,
                 reduceMotion: reduceMotion
             )
-            .offset(y: 4)
+            .offset(y: 1)
             .onTapGesture { model.togglePinned() }
             .accessibilityLabel("\(L10n.phase(phase)), \(L10n.activity(model.focus))")
         }
         .padding(.horizontal, 14)
-        .padding(.top, 28)
-        .padding(.bottom, 4)
+        .padding(.bottom, 2)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
     }
 
@@ -143,41 +132,22 @@ struct PetView: View {
                 .accessibilityLabel("\(L10n.phase(phase)), \(L10n.activity(model.focus))")
 
                 VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Text(model.focus?.title ?? "DSH")
-                            .font(.system(size: 13.5, weight: .semibold, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.95))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                        Spacer(minLength: 4)
-                        StatusChip(phase: phase, connected: model.connected, count: model.activeCount, accent: accent)
-                    }
+                    Text(L10n.taskTitle(model.focus))
+                        .font(.system(size: 13.5, weight: .semibold, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.95))
+                        .lineLimit(2)
+                        .lineSpacing(1)
+                        .truncationMode(.tail)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
 
-                    HStack(spacing: 5) {
-                        Text(L10n.activity(model.focus))
-                            .font(.system(size: 11.5, weight: .medium, design: .rounded))
-                            .foregroundStyle(.white.opacity(0.70))
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                        if let tool = model.focus?.tool, !tool.isEmpty, phase == .tool {
-                            ToolBadge(tool: tool, accent: accent)
-                        } else if model.activeCount > 1 {
-                            Text(L10n.count(model.activeCount, total: model.payload.totalCount ?? 0))
-                                .font(.system(size: 9, weight: .medium, design: .rounded))
-                                .foregroundStyle(.white.opacity(0.32))
-                                .lineLimit(1)
-                        }
-                        Spacer(minLength: 4)
-                        if let focus = model.focus, focus.running == true, (focus.startedAt ?? 0) > 0 {
-                            ElapsedText(
-                                startMilliseconds: focus.startedAt ?? 0,
-                                running: true,
-                                completedMilliseconds: focus.completedAt ?? 0
-                            )
-                            .font(.system(size: 10, weight: .medium, design: .monospaced))
-                            .foregroundStyle(.white.opacity(0.42))
-                        }
-                    }
+                    LiveProgressRow(
+                        focus: model.focus,
+                        phase: phase,
+                        accent: accent,
+                        compact: false,
+                        reduceMotion: reduceMotion
+                    )
 
                     if showsProgress {
                         progressArea
@@ -242,12 +212,7 @@ struct PetView: View {
                     .tracking(0.25)
                     .foregroundStyle(accent.opacity(0.92))
                 Spacer(minLength: 4)
-                if let progress = model.focus?.progress, let total = progress.total, total > 0 {
-                    Text("\(progress.completed ?? 0)/\(total)")
-                        .font(.system(size: 9, weight: .semibold, design: .monospaced))
-                        .monospacedDigit()
-                        .foregroundStyle(.white.opacity(0.42))
-                }
+                StatusChip(phase: phase, connected: model.connected, count: model.activeCount, accent: accent)
             }
             ProgressTrack(
                 fraction: model.focus?.progress?.fraction,
@@ -342,6 +307,111 @@ struct NotchShellShape: Shape {
     }
 }
 
+struct LiveProgressRow: View {
+    let focus: SessionFocus?
+    let phase: PetPhase
+    let accent: Color
+    var compact = false
+    var reduceMotion = false
+
+    private var active: Bool { phase.isBusy }
+    private var text: String { L10n.liveProgress(focus, compact: compact) }
+    private var running: Bool { focus?.running == true }
+    private var startedAt: Double { focus?.startedAt ?? 0 }
+    private var completedAt: Double { focus?.completedAt ?? 0 }
+
+    private var labelColor: Color {
+        switch phase {
+        case .error: return PetTheme.red.opacity(0.92)
+        case .waiting: return PetTheme.amber.opacity(0.92)
+        default: return .white.opacity(active ? 0.72 : 0.48)
+        }
+    }
+
+    /// Keep the filename visible for file paths and URLs; prose (commands,
+    /// reasoning) reads better when only the tail is shortened.
+    private var truncationMode: Text.TruncationMode {
+        switch focus?.activity?.kind {
+        case "edit", "write", "read", "readImage", "webFetch":
+            return .middle
+        default:
+            return .tail
+        }
+    }
+
+    var body: some View {
+        HStack(spacing: compact ? 5 : 6) {
+            LoadingIndicator(
+                phase: phase,
+                accent: accent,
+                size: compact ? 8.5 : 10,
+                reduceMotion: reduceMotion
+            )
+
+            Text(text)
+                .font(
+                    .system(
+                        size: compact ? 8.5 : 10.5,
+                        weight: .medium,
+                        design: compact ? .monospaced : .rounded
+                    )
+                )
+                .foregroundStyle(labelColor)
+                .lineLimit(1)
+                .truncationMode(truncationMode)
+
+            Spacer(minLength: 4)
+
+            if running, startedAt > 0 {
+                ElapsedText(
+                    startMilliseconds: startedAt,
+                    running: true,
+                    completedMilliseconds: completedAt
+                )
+                .font(.system(size: compact ? 8.5 : 9.5, weight: .medium, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.34))
+                .fixedSize()
+            }
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// The accent-colored loading arc. It leads the live step line while the
+/// agent is working; a static dot marks the non-busy states.
+struct LoadingIndicator: View {
+    let phase: PetPhase
+    let accent: Color
+    let size: CGFloat
+    let reduceMotion: Bool
+
+    @State private var tick = 0
+    private let spinTimer = Timer.publish(every: 1.0 / 30.0, on: .main, in: .common).autoconnect()
+
+    var body: some View {
+        ZStack {
+            if phase.isBusy {
+                Circle()
+                    .trim(from: 0, to: 0.72)
+                    .stroke(
+                        accent.opacity(0.95),
+                        style: StrokeStyle(lineWidth: max(1, size * 0.16), lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(reduceMotion ? 0 : Double(tick) * 12))
+            } else {
+                Circle()
+                    .fill(PetTheme.color(for: phase).opacity(0.72))
+                    .frame(width: size * 0.42, height: size * 0.42)
+            }
+        }
+        .frame(width: size, height: size)
+        .accessibilityHidden(true)
+        .onReceive(spinTimer) { _ in
+            if phase.isBusy && !reduceMotion { tick = (tick + 1) % 30 }
+        }
+    }
+}
+
 struct StatusChip: View {
     let phase: PetPhase
     let connected: Bool
@@ -362,21 +432,6 @@ struct StatusChip: View {
         .padding(.vertical, 3)
         .background(Capsule().fill(accent.opacity(connected ? 0.10 : 0.04)))
         .overlay(Capsule().stroke(accent.opacity(connected ? 0.22 : 0.08), lineWidth: 0.5))
-    }
-}
-
-struct ToolBadge: View {
-    let tool: String
-    let accent: Color
-
-    var body: some View {
-        Text(tool)
-            .font(.system(size: 8.5, weight: .medium, design: .monospaced))
-            .foregroundStyle(accent.opacity(0.9))
-            .lineLimit(1)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 2)
-            .background(RoundedRectangle(cornerRadius: 4, style: .continuous).fill(accent.opacity(0.10)))
     }
 }
 

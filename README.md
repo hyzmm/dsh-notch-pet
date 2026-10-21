@@ -1,6 +1,6 @@
 # DSH Notch Pet
 
-A macOS notch companion for DSH. It peeks out of the hardware notch, reacts to the live agent state, and expands on hover to show the focused session's activity, elapsed time, task progress, and goal progress.
+A macOS notch companion for DSH. It peeks out of the hardware notch, shows the session's task title and the live step line that DSH shows below the assistant message, and expands on hover to show the title, live step, elapsed time, task progress, and goal progress.
 
 ![Collapsed notch pet](docs/notch-pet-collapsed.png)
 
@@ -30,14 +30,16 @@ Logs:
 
 ## Progress model
 
-The pet shows the most recently active root session. A subagent-heavy run still contributes to the active count. The compact bar shows the current tool and turn time. The expanded panel shows:
+The pet shows the most recently active root session. A subagent-heavy run still contributes to the active count. The title is DSH's own session title (`ctx.sessionTitle`), so an auto-generated or user-renamed title wins over the raw first prompt; the prompt is only a fallback. The collapsed notch strip has room for two compact lines under the hardware notch, so it shows that title plus the live step line the DSH chat shows below the assistant message. While the model is thinking, that line is `Thinking · <latest reasoning>`, fed by the `agent/assistant-stream` reasoning deltas and reduced to a sentence-aligned preview that keeps changing. While a tool runs, it is `Editing file · native/Sources/PetView.swift` or `Running command · Build the native app`. It deliberately does not use the finished assistant reply text. The line does not blink; the accent loading arc leads it while the agent is working. The collapsed panel keeps its original height; the new information uses the empty width beside the notch instead of adding space.
 
-- session title and activity
-- current tool and elapsed turn time
+The expanded panel shows:
+
+- session title, wrapped to two lines
+- the same live step or reasoning line with elapsed turn time
 - `todo_write` completion, falling back to goal rounds
-- the current todo, goal objective, or last error
+- the goal objective, last error, or a short status hint
 
-No percentage is invented when DSH has no countable unit. The bar stays indeterminate while the agent is active. When the agent is idle, the indeterminate bar is hidden and any determinate bar is frozen, so the notch does not keep flashing. Active progress runs at 60 fps, and expanding or collapsing the panel uses an animated notch transition.
+No percentage is invented when DSH has no countable unit: without one, the bar stays indeterminate while the agent is active. When the agent is idle, the indeterminate bar is hidden and any determinate bar is frozen, so the notch does not keep flashing. Active progress runs at 60 fps, and expanding or collapsing the panel uses an animated notch transition. The step text itself is static; only the loading arc animates, and it stops when the agent is idle or Reduce Motion is on.
 
 ## Controls
 

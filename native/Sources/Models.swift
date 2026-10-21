@@ -40,9 +40,18 @@ struct SessionFocus: Decodable {
     var updatedAt: Double?
     var lastTool: String?
     var lastError: String?
+    var reasoning: String?
+    var activity: ActivityState?
     var progress: ProgressState?
     var goal: GoalState?
     var todos: [TodoItem]?
+}
+
+struct ActivityState: Decodable {
+    var kind: String?
+    var detail: String?
+    var detailShort: String?
+    var tool: String?
 }
 
 struct ProgressState: Decodable {
