@@ -188,6 +188,10 @@ struct PetView: View {
 
                 Spacer(minLength: 6)
 
+                if let usage = model.focus?.usage, usage.hasUsage {
+                    TokenUsageView(usage: usage, accent: accent)
+                }
+
                 if let modelName = model.focus?.model, !modelName.isEmpty {
                     Text(modelName)
                         .font(.system(size: 8.5, weight: .medium, design: .monospaced))
@@ -460,6 +464,34 @@ struct StatusChip: View {
         .padding(.vertical, 3)
         .background(Capsule().fill(accent.opacity(connected ? 0.10 : 0.04)))
         .overlay(Capsule().stroke(accent.opacity(connected ? 0.22 : 0.08), lineWidth: 0.5))
+    }
+}
+
+struct TokenUsageView: View {
+    let usage: TokenUsage
+    let accent: Color
+
+    var body: some View {
+        HStack(spacing: 3) {
+            Image(systemName: "chart.bar.fill")
+                .font(.system(size: 7, weight: .bold))
+                .foregroundStyle(accent.opacity(0.55))
+
+            Text(L10n.tokenUsage(usage))
+                .font(.system(size: 8.5, weight: .medium, design: .monospaced))
+                .foregroundStyle(.white.opacity(0.44))
+                .fixedSize()
+
+            if let cacheHit = usage.cacheHitText {
+                Text("· \(L10n.cacheHit(cacheHit))")
+                    .font(.system(size: 8, weight: .regular, design: .monospaced))
+                    .foregroundStyle(.white.opacity(0.26))
+                    .fixedSize()
+            }
+        }
+        .help(L10n.usageDetail(usage))
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(L10n.usageDetail(usage))
     }
 }
 

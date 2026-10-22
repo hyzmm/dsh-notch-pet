@@ -41,6 +41,7 @@ struct SessionFocus: Decodable {
     var lastTool: String?
     var lastError: String?
     var reasoning: String?
+    var usage: TokenUsage?
     var activity: ActivityState?
     var progress: ProgressState?
     var goal: GoalState?
@@ -52,6 +53,40 @@ struct ActivityState: Decodable {
     var detail: String?
     var detailShort: String?
     var tool: String?
+}
+
+/// Whole-session provider-reported usage. `input` is the uncached prompt side;
+/// cached reads and writes are reported separately, exactly as DSH's own usage
+/// pill presents them.
+struct TokenUsage: Decodable {
+    var input: Int?
+    var output: Int?
+    var cacheRead: Int?
+    var cacheWrite: Int?
+
+    var uncachedInputTokens: Int { max(0, input ?? 0) }
+    var outputTokens: Int { max(0, output ?? 0) }
+    var cacheReadTokens: Int { max(0, cacheRead ?? 0) }
+    var cacheWriteTokens: Int { max(0, cacheWrite ?? 0) }
+
+    var billedInputTokens: Int {
+        uncachedInputTokens + cacheReadTokens + cacheWriteTokens
+    }
+
+    var totalTokens: Int { billedInputTokens + outputTokens }
+
+    var hasUsage: Bool { totalTokens > 0 }
+
+    /// A partial cache hit never rounds up to a misleading 100%.
+    var cacheHitText: String? {
+        let denominator = billedInputTokens
+        guard denominator > 0, cacheReadTokens > 0 else { return nil }
+        if cacheReadTokens >= denominator { return "100%" }
+        let percent = Double(cacheReadTokens) / Double(denominator) * 100
+        if percent >= 99.95 { return "99.9%" }
+        if percent >= 99.5 { return String(format: "%.1f%%", percent) }
+        return "\(Int(percent.rounded()))%"
+    }
 }
 
 struct ProgressState: Decodable {

@@ -18,7 +18,8 @@
 DSH Notch Pet tucks a tiny robot into the hardware notch. At a glance it shows
 the session title and the live step line that DSH shows in the chat. Hover and it
 unfolds into a compact status card with elapsed turn time, task or goal progress,
-the active-agent count, the model, and one-click access back to DSH.
+the session's token usage, the active-agent count, the model, and one-click access
+back to DSH.
 
 **Jump to:** [Screenshots](#what-it-looks-like) · [Highlights](#highlights) ·
 [Install](#install) · [Controls](#controls) · [Settings](#settings) ·
@@ -35,7 +36,8 @@ underneath. It never adds height to the strip.*
 ![Expanded notch pet](docs/notch-pet-expanded.png)
 
 *Expanded: up to two title lines, live step, elapsed time, `Tasks 3/7`, active
-agents, the goal, the model, and the controls.*
+agents, the session's token usage and cache hit, the goal, the model, and the
+controls.*
 
 ## Highlights
 
@@ -48,6 +50,10 @@ agents, the goal, the model, and the controls.*
   DSH has tasks, and falls back to goal rounds when it does not. With no
   countable unit, the bar shimmers indeterminately while the agent works, then
   freezes or disappears when it stops.
+- **The session's bill, not a guess.** The expanded footer reads the same
+  provider-reported `tokenUsage` projection as DSH's own Usage pill: cumulative
+  billed input plus output, with the cache-hit share beside it. No estimator and
+  no extra model calls.
 - **Gets out of the way.** Turn on **Only while working** and the panel is ordered
   out entirely whenever no task is running. A pawprint takes its place in the menu
   bar, and a second switch hides that too. Pinning overrides it.
@@ -141,6 +147,16 @@ goal that has rounds, it tracks `Goal 2/6 rounds`. Without either, it becomes an
 indeterminate band while the agent is busy. When the agent is idle, the
 indeterminate band is hidden and any determinate bar is frozen, so the notch does
 not keep flashing.
+
+### Token usage
+
+The expanded footer shows the focused session's cumulative provider-reported
+tokens — the same `tokenUsage` projection behind DSH's own Usage pill — as
+`21.9K tok · 94% hit`. The total is billed input (uncached, cache read, and cache
+write) plus output; `hit` is the cache-read share of prompt-side input, and a
+partial hit never rounds up to 100%. Hover the readout for the exact breakdown.
+If `dsh-token-meter` is not mounted, the host falls back to folding each
+`assistant/message` usage record.
 
 The expanded panel also shows the goal objective, the last error, or a short
 status hint in the footer. The step text itself does not move; the loading arc

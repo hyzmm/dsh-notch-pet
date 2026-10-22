@@ -174,6 +174,57 @@ class NotchPetBridge {
       this.#applyEvent(state, event)
       this.#schedulePublish()
     })
+
+    this.#watchUsage()
+  }
+
+  /**
+   * Token totals are a projection: the session log only stores each attempt's
+   * provider usage, and replaying it here would have to re-implement retries and
+   * cache buckets. Fall back to folding `assistant/message` usage when the
+   * token-meter plugin is not mounted.
+   */
+  #watchUsage() {
+    const projections = this.#service('sessionProjections')
+    if (!projections?.onChanged) return
+    try {
+      const dispose = projections.onChanged((session, key, value) => {
+        if (key !== 'tokenUsage') return
+        const state = this.#states.get(String(session.id))
+        if (!state) return
+        state.usage = normalizeUsage(value)
+        state.usageFromProjection = true
+        this.#schedulePublish()
+      })
+      this.#disposers.push(dispose)
+    } catch {}
+  }
+
+  #refreshUsage(state) {
+    const session = this.#sessionFor(state.id)
+    if (!session) return
+    const projections = this.#service('sessionProjections')
+    if (!projections?.snapshot) return
+    try {
+      const usage = projections.snapshot(session, ['tokenUsage'])?.values?.tokenUsage
+      if (!usage) return
+      state.usage = normalizeUsage(usage)
+      state.usageFromProjection = true
+    } catch {}
+  }
+
+  #accumulateUsage(state, event) {
+    if (state.usageFromProjection) return
+    const buckets = normalizeUsage(event?.data?.usage)
+    if (!buckets) return
+    const turn = Number(event.data?.turn) || 0
+    const step = Number(event.data?.step) || 0
+    const previous =
+      state.usageSlot?.turn === turn && state.usageSlot?.step === step
+        ? state.usageSlot.buckets
+        : null
+    state.usage = addUsage(state.usage, previous, buckets)
+    state.usageSlot = { turn, step, buckets }
   }
 
   #hydrateLiveAgents() {
@@ -189,6 +240,7 @@ class NotchPetBridge {
       }
       state.updatedAt = events.at(-1)?.time ?? state.createdAt
       state.model = session?.requestContext?.()?.model ?? state.model
+      this.#refreshUsage(state)
       this.#refreshGoal(agent)
       this.#refreshTitle(state)
     }
@@ -219,6 +271,9 @@ class NotchPetBridge {
       stream: null,
       goal: null,
       todos: [],
+      usage: null,
+      usageSlot: null,
+      usageFromProjection: false,
       turnStartedAt: 0,
       completedAt: 0,
       updatedAt: header?.createdAt ?? Date.now(),
@@ -269,6 +324,7 @@ class NotchPetBridge {
         if (reasoning) state.reasoning = reasoningPreview(reasoning)
         state.phase = 'thinking'
         state.updatedAt = time
+        this.#accumulateUsage(state, event)
         break
       }
       case 'tool/call': {
@@ -315,6 +371,12 @@ class NotchPetBridge {
         }
         state.completedAt = time
         state.updatedAt = time
+        break
+      }
+      case 'llm/retry-started': {
+        // A retried attempt within the same step is billed separately, so the
+        // fallback fold must not replace the earlier attempt's usage.
+        state.usageSlot = null
         break
       }
       default:
@@ -547,6 +609,42 @@ function activeToolName(state) {
   return tools[0]?.name ?? ''
 }
 
+function normalizeUsage(raw) {
+  if (!raw || typeof raw !== 'object') return null
+  const uncachedInput = countTokens(
+    raw.uncachedInputTokens ?? raw.inputTokens ?? raw.input,
+  )
+  const output = countTokens(raw.outputTokens ?? raw.output)
+  const cacheRead = countTokens(raw.cacheReadTokens ?? raw.cacheRead)
+  const cacheWrite = countTokens(raw.cacheWriteTokens ?? raw.cacheWrite)
+  return {
+    input: uncachedInput,
+    output,
+    cacheRead,
+    cacheWrite,
+  }
+}
+
+function addUsage(current, previous, next) {
+  return {
+    input: (current?.input ?? 0) - (previous?.input ?? 0) + next.input,
+    output: (current?.output ?? 0) - (previous?.output ?? 0) + next.output,
+    cacheRead: (current?.cacheRead ?? 0) - (previous?.cacheRead ?? 0) + next.cacheRead,
+    cacheWrite: (current?.cacheWrite ?? 0) - (previous?.cacheWrite ?? 0) + next.cacheWrite,
+  }
+}
+
+function usageView(usage) {
+  if (!usage) return null
+  if (usage.input + usage.output + usage.cacheRead + usage.cacheWrite <= 0) return null
+  return usage
+}
+
+function countTokens(value) {
+  const number = Number(value)
+  return Number.isFinite(number) && number > 0 ? Math.floor(number) : 0
+}
+
 function activeToolActivity(state) {
   const tools = [...state.activeTools.values()].sort((a, b) => b.startedAt - a.startedAt)
   const tool = tools[0]
@@ -628,6 +726,7 @@ function focusView(state, now) {
     updatedAt: state.updatedAt,
     lastTool: state.lastTool,
     lastError: state.lastError ? clip(String(state.lastError), 200) : '',
+    usage: usageView(state.usage),
     progress,
     goal: goal
       ? {

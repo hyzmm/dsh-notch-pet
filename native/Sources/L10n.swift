@@ -169,6 +169,41 @@ enum L10n {
         return "\(total / 3600)h \(total % 3600 / 60)m"
     }
 
+    /// Session total in DSH's compact token style: 517 / 12.2K / 517K / 1.2M.
+    static func tokenUsage(_ usage: TokenUsage) -> String {
+        "\(compactTokenCount(usage.totalTokens)) tok"
+    }
+
+    /// The tiny cache-hit suffix that fits beside the session total.
+    static func cacheHit(_ percent: String) -> String {
+        t("\(percent) hit", "命中 \(percent)")
+    }
+
+    static func usageDetail(_ usage: TokenUsage) -> String {
+        let total = usage.totalTokens.formatted(.number)
+        let input = usage.uncachedInputTokens.formatted(.number)
+        let cacheRead = usage.cacheReadTokens.formatted(.number)
+        let output = usage.outputTokens.formatted(.number)
+        let cacheHit = usage.cacheHitText.map {
+            t(" · \($0) cached", " · 缓存 \($0)")
+        } ?? ""
+        return t(
+            "Session tokens \(total) · uncached input \(input) · cache read \(cacheRead) · output \(output)\(cacheHit)",
+            "会话 Token \(total) · 未缓存输入 \(input) · 缓存读取 \(cacheRead) · 输出 \(output)\(cacheHit)"
+        )
+    }
+
+    private static func compactTokenCount(_ value: Int) -> String {
+        if value < 1_000 { return String(value) }
+        let scaled = value < 1_000_000
+            ? Double(value) / 1_000
+            : Double(value) / 1_000_000
+        let rounded = scaled >= 100 ? scaled.rounded() : (scaled * 10).rounded() / 10
+        let tenths = Int((rounded * 10).rounded())
+        let number = tenths % 10 == 0 ? String(tenths / 10) : "\(tenths / 10).\(tenths % 10)"
+        return number + (value < 1_000_000 ? "K" : "M")
+    }
+
     static func accentPresetName(_ id: String) -> String {
         switch id {
         case "aurora": return t("Aurora", "极光蓝")
