@@ -1,10 +1,26 @@
 {
-  "name": "@local/dsh-notch-pet",
+  "name": "dsh-notch-pet",
   "version": "1.4.0",
-  "private": true,
   "type": "module",
   "description": "An animated companion that shows live DSH agent progress in the macOS notch.",
   "license": "MIT",
+  "keywords": [
+    "dsh",
+    "dsh-plugin",
+    "notch",
+    "macos",
+    "menu-bar",
+    "agent",
+    "companion"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hyzmm/dsh-notch-pet.git"
+  },
+  "homepage": "https://github.com/hyzmm/dsh-notch-pet#readme",
+  "bugs": {
+    "url": "https://github.com/hyzmm/dsh-notch-pet/issues"
+  },
   "exports": {
     ".": "./index.js",
     "./locale/*.json": "./locale/*.json",
