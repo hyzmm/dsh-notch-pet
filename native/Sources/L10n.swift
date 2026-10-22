@@ -197,6 +197,11 @@ enum L10n {
         "Hide the notch when no task is running",
         "无进行中任务时隐藏刘海，不占空间"
     )
+    static let hideStatusItem = t("Hide menu bar icon", "隐藏状态栏图标")
+    static let hideStatusItemHint = t(
+        "Keep the pawprint out of the menu bar. Start a task to reach the panel again.",
+        "面板隐藏时不在状态栏留图标；启动任意任务即可唤回面板"
+    )
     static let customColor = t("Custom color", "自定义颜色")
     static let customHint = t("Pick any color", "点击色块任选颜色")
     static let reset = t("Reset", "恢复默认")

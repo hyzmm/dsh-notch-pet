@@ -261,66 +261,90 @@ struct PetSettingsView: View {
     }
 
     private var behaviorSection: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             Rectangle()
                 .fill(Color.white.opacity(0.07))
                 .frame(height: 0.6)
 
-            HStack(alignment: .center, spacing: 9) {
-                Image(systemName: "eye.slash")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundStyle(
-                        preferences.hideWhenIdle
-                            ? theme.palette.primary.opacity(0.92)
-                            : Color.white.opacity(0.44)
-                    )
-                    .frame(width: 22, height: 22)
-                    .background(
-                        RoundedRectangle(cornerRadius: 7, style: .continuous)
-                            .fill(
-                                preferences.hideWhenIdle
-                                    ? theme.palette.primary.opacity(0.14)
-                                    : Color.white.opacity(0.05)
-                            )
-                    )
-
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(L10n.onlyWhileWorking)
-                        .font(.system(size: 10.5, weight: .medium, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.86))
-                    Text(L10n.onlyWhileWorkingHint)
-                        .font(.system(size: 8.5, weight: .regular, design: .rounded))
-                        .foregroundStyle(.white.opacity(0.38))
-                        .lineLimit(2)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-
-                Spacer(minLength: 6)
-
-                Toggle(
-                    "",
-                    isOn: Binding(
-                        get: { preferences.hideWhenIdle },
-                        set: { preferences.setHideWhenIdle($0) }
-                    )
-                )
-                .labelsHidden()
-                .toggleStyle(.switch)
-                .controlSize(.mini)
-                .tint(theme.palette.primary)
-                .help(L10n.onlyWhileWorkingHint)
-                .accessibilityLabel(L10n.onlyWhileWorking)
-            }
-            .padding(9)
-            .background(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .fill(Color.white.opacity(0.045))
+            preferenceRow(
+                systemName: "eye.slash",
+                title: L10n.onlyWhileWorking,
+                hint: L10n.onlyWhileWorkingHint,
+                isOn: preferences.hideWhenIdle,
+                onChange: preferences.setHideWhenIdle
             )
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .stroke(Color.white.opacity(0.06), lineWidth: 0.6)
+
+            preferenceRow(
+                systemName: "menubar.rectangle",
+                title: L10n.hideStatusItem,
+                hint: L10n.hideStatusItemHint,
+                isOn: preferences.hideStatusItem,
+                onChange: preferences.setHideStatusItem
             )
         }
+    }
+
+    private func preferenceRow(
+        systemName: String,
+        title: String,
+        hint: String,
+        isOn: Bool,
+        onChange: @escaping (Bool) -> Void
+    ) -> some View {
+        HStack(alignment: .center, spacing: 9) {
+            Image(systemName: systemName)
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(
+                    isOn
+                        ? theme.palette.primary.opacity(0.92)
+                        : Color.white.opacity(0.44)
+                )
+                .frame(width: 22, height: 22)
+                .background(
+                    RoundedRectangle(cornerRadius: 7, style: .continuous)
+                        .fill(
+                            isOn
+                                ? theme.palette.primary.opacity(0.14)
+                                : Color.white.opacity(0.05)
+                        )
+                )
+
+            VStack(alignment: .leading, spacing: 1) {
+                Text(title)
+                    .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.86))
+                Text(hint)
+                    .font(.system(size: 8.5, weight: .regular, design: .rounded))
+                    .foregroundStyle(.white.opacity(0.38))
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
+            Spacer(minLength: 6)
+
+            Toggle(
+                "",
+                isOn: Binding(
+                    get: { isOn },
+                    set: onChange
+                )
+            )
+            .labelsHidden()
+            .toggleStyle(.switch)
+            .controlSize(.mini)
+            .tint(theme.palette.primary)
+            .help(hint)
+            .accessibilityLabel(title)
+        }
+        .padding(9)
+        .background(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .fill(Color.white.opacity(0.045))
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .stroke(Color.white.opacity(0.06), lineWidth: 0.6)
+        )
     }
 
     private var saturationBrightnessField: some View {
