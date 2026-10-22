@@ -22,7 +22,8 @@ the active-agent count, the model, and one-click access back to DSH.
 
 **Jump to:** [Screenshots](#what-it-looks-like) · [Highlights](#highlights) ·
 [Install](#install) · [Controls](#controls) · [Settings](#settings) ·
-[Architecture](#architecture) · [Troubleshooting](#troubleshooting)
+[Architecture](#architecture) · [Troubleshooting](#troubleshooting) ·
+[License](#license)
 
 ## What it looks like
 
@@ -83,6 +84,14 @@ Install it from inside DSH — no clone, no terminal, no Xcode.
    ```
 
 3. Confirm. DSH fetches the bundle and installs it for you.
+
+Prefer the terminal? The same bundle installs from a public repository with:
+
+```sh
+dsh plugin --profile web add github:hyzmm/dsh-notch-pet
+```
+
+`web` is the DSH Desktop profile; keep the profile you actually run.
 
 The pet appears at the top of the display a moment later. If it does not, make
 sure the plugin is enabled in **Plugins**, disable and re-enable it, or restart
@@ -224,5 +233,9 @@ needs no account.
   to another screen.
 - Live state only: no history, no transcript, and no controls for the agent. The
   pet is a viewer, not a controller.
+
+## License
+
+MIT © 2026 WengXiang. See [LICENSE](LICENSE).
 
 <p align="center"><sub>Built with AppKit, SwiftUI, and a Unix socket.</sub></p>

@@ -4,6 +4,7 @@
   "private": true,
   "type": "module",
   "description": "An animated companion that shows live DSH agent progress in the macOS notch.",
+  "license": "MIT",
   "exports": {
     ".": "./index.js",
     "./locale/*.json": "./locale/*.json",
