@@ -49,7 +49,7 @@ struct PetSettingsView: View {
                 Circle()
                     .fill(
                         LinearGradient(
-                            colors: [theme.chosenColor, theme.palette.primary],
+                            colors: [theme.palette.primary, theme.palette.companion],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
                         )
@@ -118,7 +118,7 @@ struct PetSettingsView: View {
                             LinearGradient(
                                 colors: [
                                     preset.color.opacity(0.98),
-                                    preset.color.opacity(0.64),
+                                    preset.companion.opacity(0.92),
                                 ],
                                 startPoint: .topLeading,
                                 endPoint: .bottomTrailing
@@ -181,8 +181,8 @@ struct PetSettingsView: View {
                             .fill(
                                 LinearGradient(
                                     colors: [
-                                        theme.chosenColor,
-                                        theme.chosenColor.opacity(0.55),
+                                        theme.palette.primary,
+                                        theme.palette.companion.opacity(0.92),
                                     ],
                                     startPoint: .topLeading,
                                     endPoint: .bottomTrailing

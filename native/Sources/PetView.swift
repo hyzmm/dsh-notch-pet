@@ -632,7 +632,7 @@ struct PetAvatar: View {
                             colors: [
                                 accent.opacity(0.98),
                                 accent.opacity(0.82),
-                                palette.shade(for: phase).opacity(0.92),
+                                palette.secondTone(for: phase).opacity(0.88),
                             ],
                             startPoint: .topLeading,
                             endPoint: .bottomTrailing
