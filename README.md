@@ -65,15 +65,36 @@ agents, the goal, the model, and the controls.*
 
 - macOS 14 Sonoma or newer.
 - DSH Desktop, or a DSH host running inside a macOS GUI session.
-- Apple Silicon or Intel — the helper is a universal binary.
-- Xcode Command Line Tools to build the helper from source.
+- Apple Silicon or Intel — the bundled helper is a universal binary.
+- Xcode Command Line Tools only if you rebuild the helper from source.
 
 A notched MacBook is not required: on other Macs the panel floats at the top
 center of the main display with rounded top corners.
 
 ## Install
 
-### 1. Build the helper
+Install it from inside DSH — no clone, no terminal, no Xcode.
+
+1. Open **Plugins** in DSH and click **Add plugin**
+2. Paste this address into the dialog:
+
+   ```
+   https://github.com/hyzmm/dsh-notch-pet
+   ```
+
+3. Confirm. DSH fetches the bundle and installs it for you.
+
+The pet appears at the top of the display a moment later. If it does not, make
+sure the plugin is enabled in **Plugins**, disable and re-enable it, or restart
+DSH.
+
+The package ships a prebuilt ad-hoc-signed universal helper, so nothing is
+compiled on install. DSH launches the helper itself; there is no app to open.
+When the plugin is disabled or DSH quits, the helper stops with it.
+
+### Build from source (optional, for development)
+
+Only needed when you change the Swift sources or `native/Info.plist`:
 
 ```sh
 git clone https://github.com/hyzmm/dsh-notch-pet.git
@@ -82,33 +103,9 @@ chmod +x native/build.sh
 ./native/build.sh
 ```
 
-The script produces an ad-hoc-signed universal helper at
-`native/DSHNotchPet.app`. Rebuild after changing Swift sources or
-`native/Info.plist`.
-
-### 2. Install the bundle
-
-Install this folder as a bundle in your DSH profile. The DSH plugin manager is
-the simplest route.
-
-If you manage the profile from a shell, link the package from the checkout with
-the `dsh` CLI that ships with DSH, then make sure `@local/dsh-notch-pet` is
-listed in `dsh.profile.bundles` in the profile's `package.json`:
-
-```sh
-dsh plugin --profile desktop add "link:$PWD"
-```
-
-Replace `desktop` with the profile you boot. If `dsh` is not on your `PATH`,
-use the plugin manager or invoke the CLI from the DSH app bundle.
-
-### 3. Reload DSH
-
-Disable and re-enable the plugin, or restart DSH. The pet appears at the top of
-the display.
-
-DSH launches the helper itself; there is no app to open. When the plugin is
-disabled or DSH quits, the helper stops with it.
+The script rebuilds `native/DSHNotchPet.app` as a universal binary. After that,
+install the checkout the same way: **Add plugin** → the absolute path of the
+folder.
 
 ## Controls
 
