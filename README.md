@@ -79,12 +79,7 @@ center of the main display with rounded top corners.
 ## Install
 
 1. Open **Plugins** in DSH and click **Add plugin**
-2. Paste this address into the dialog:
-
-   ```
-   https://github.com/hyzmm/dsh-notch-pet
-   ```
-
+2. Paste this plugin name `dsh-notch-pet` into the dialog:
 3. Confirm. DSH fetches the bundle and installs it for you.
 
 Prefer the terminal? The same bundle installs from a public repository with:
