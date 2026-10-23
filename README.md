@@ -85,7 +85,7 @@ center of the main display with rounded top corners.
 Prefer the terminal? The same bundle installs from a public repository with:
 
 ```sh
-dsh plugin --profile web add dsh-notch-pet
+dsh plugin --profile web add github:hyzmm/dsh-notch-pet
 ```
 
 `web` is the DSH Desktop profile; keep the profile you actually run.
