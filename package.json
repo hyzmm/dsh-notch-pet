@@ -1,6 +1,6 @@
 {
   "name": "dsh-notch-pet",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "type": "module",
   "description": "An animated companion that shows live DSH agent progress in the macOS notch.",
   "license": "MIT",
