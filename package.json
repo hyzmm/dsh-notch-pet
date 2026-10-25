@@ -31,7 +31,6 @@
     "cordis.patch.yml",
     "locale/*.json",
     "icon.png",
-    "icon.svg",
     "native/DSHNotchPet.app/**/*",
     "native/Sources/**/*",
     "native/Info.plist",
