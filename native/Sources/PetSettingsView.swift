@@ -275,6 +275,14 @@ struct PetSettingsView: View {
             )
 
             preferenceRow(
+                systemName: "face.smiling",
+                title: L10n.hidePet,
+                hint: L10n.hidePetHint,
+                isOn: preferences.hidePet,
+                onChange: preferences.setHidePet
+            )
+
+            preferenceRow(
                 systemName: "menubar.rectangle",
                 title: L10n.hideStatusItem,
                 hint: L10n.hideStatusItemHint,

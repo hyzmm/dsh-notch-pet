@@ -9,7 +9,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
     private let item: NSStatusItem
     private let preferences = PetPreferences.shared
     private let hideWhenIdleItem = NSMenuItem()
+    private let hidePetItem = NSMenuItem()
     private var menuObservation: AnyCancellable?
+    private var petObservation: AnyCancellable?
     private var visibilityObservation: AnyCancellable?
     private var wantsVisible = false
 
@@ -34,6 +36,9 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         hideWhenIdleItem.title = L10n.onlyWhileWorking
         hideWhenIdleItem.action = #selector(toggleHideWhenIdle)
 
+        hidePetItem.title = L10n.hidePet
+        hidePetItem.action = #selector(toggleHidePet)
+
         let menu = NSMenu()
         menu.delegate = self
         menu.addItem(
@@ -52,6 +57,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         )
         menu.addItem(.separator())
         menu.addItem(hideWhenIdleItem)
+        menu.addItem(hidePetItem)
         menu.addItem(.separator())
         menu.addItem(
             NSMenuItem(
@@ -72,6 +78,10 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             .sink { [weak self] hideWhenIdle in
                 self?.hideWhenIdleItem.state = hideWhenIdle ? .on : .off
             }
+        petObservation = preferences.$hidePet
+            .sink { [weak self] hidePet in
+                self?.hidePetItem.state = hidePet ? .on : .off
+            }
         visibilityObservation = preferences.$hideStatusItem
             .sink { [weak self] hideStatusItem in
                 self?.refreshVisibility(hideStatusItem: hideStatusItem)
@@ -91,6 +101,7 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     private func refreshMenuState() {
         hideWhenIdleItem.state = preferences.hideWhenIdle ? .on : .off
+        hidePetItem.state = preferences.hidePet ? .on : .off
     }
 
     private func refreshVisibility(hideStatusItem: Bool) {
@@ -119,6 +130,13 @@ final class StatusItemController: NSObject, NSMenuDelegate {
         DispatchQueue.main.async { [weak self] in
             guard let self else { return }
             self.preferences.setHideWhenIdle(!self.preferences.hideWhenIdle)
+        }
+    }
+
+    @objc private func toggleHidePet() {
+        DispatchQueue.main.async { [weak self] in
+            guard let self else { return }
+            self.preferences.setHidePet(!self.preferences.hidePet)
         }
     }
 

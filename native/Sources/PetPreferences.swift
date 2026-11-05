@@ -10,6 +10,7 @@ final class PetPreferences: ObservableObject {
     private enum Key {
         static let hideWhenIdle = "hideWhenIdle"
         static let hideStatusItem = "hideStatusItem"
+        static let hidePet = "hidePet"
     }
 
     /// When true, the panel only exists while at least one agent is working.
@@ -19,9 +20,14 @@ final class PetPreferences: ObservableObject {
     /// while the panel is ordered out.
     @Published private(set) var hideStatusItem: Bool
 
+    /// When true, the notch keeps the task details but drops the animated
+    /// mascot and its glow. Off by default so the pet is visible out of the box.
+    @Published private(set) var hidePet: Bool
+
     private init() {
         hideWhenIdle = UserDefaults.standard.bool(forKey: Key.hideWhenIdle)
         hideStatusItem = UserDefaults.standard.bool(forKey: Key.hideStatusItem)
+        hidePet = UserDefaults.standard.bool(forKey: Key.hidePet)
     }
 
     func setHideWhenIdle(_ value: Bool) {
@@ -36,5 +42,12 @@ final class PetPreferences: ObservableObject {
         hideStatusItem = value
         UserDefaults.standard.set(value, forKey: Key.hideStatusItem)
         AppLog.write("hideStatusItem=\(value)")
+    }
+
+    func setHidePet(_ value: Bool) {
+        guard hidePet != value else { return }
+        hidePet = value
+        UserDefaults.standard.set(value, forKey: Key.hidePet)
+        AppLog.write("hidePet=\(value)")
     }
 }

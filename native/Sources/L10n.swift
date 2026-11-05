@@ -232,6 +232,11 @@ enum L10n {
         "Hide the notch when no task is running",
         "无进行中任务时隐藏刘海，不占空间"
     )
+    static let hidePet = t("Hide pet", "隐藏宠物形象")
+    static let hidePetHint = t(
+        "Keep the task details, hide the animated mascot",
+        "只保留任务信息，不显示动画宠物形象"
+    )
     static let hideStatusItem = t("Hide menu bar icon", "隐藏状态栏图标")
     static let hideStatusItemHint = t(
         "Keep the pawprint out of the menu bar. Start a task to reach the panel again.",

@@ -56,7 +56,9 @@ controls.*
   no extra model calls.
 - **Gets out of the way.** Turn on **Only while working** and the panel is ordered
   out entirely whenever no task is running. A pawprint takes its place in the menu
-  bar, and a second switch hides that too. Pinning overrides it.
+  bar, and a second switch hides that too. Pinning overrides it. Prefer a quieter
+  notch? **Hide pet** drops the animated mascot and its glow while keeping the
+  session title, live step, progress, and token readout.
 - **Six accents, honest status colors.** Glacier (the default cyan), Aurora,
   Iris, Sakura, Tangerine, and Mint, plus a custom
   hue/saturation/brightness picker. Waiting stays amber, errors stay red, and
@@ -107,7 +109,7 @@ When the plugin is disabled or DSH quits, the helper stops with it.
 | Gear in the footer | Opens settings. |
 | Pin / Open DSH in the footer | Pin the panel, or focus DSH (falling back to the web origin). |
 | Right-click the panel | Open DSH, pin or unpin, open settings, or quit. |
-| Pawprint in the menu bar | Appears while the panel is hidden: Settings, Open DSH, the **Only while working** switch, and Quit. |
+| Pawprint in the menu bar | Appears while the panel is hidden: Settings, Open DSH, the **Only while working** and **Hide pet** switches, and Quit. |
 | Launch | Peeks open for about three seconds, then settles back to the collapsed strip. |
 
 ## What the pet shows

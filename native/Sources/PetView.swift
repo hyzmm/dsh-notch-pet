@@ -5,6 +5,7 @@ import SwiftUI
 struct PetView: View {
     @ObservedObject var model: PetViewModel
     @ObservedObject private var theme = PetTheme.shared
+    @ObservedObject private var preferences = PetPreferences.shared
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     private var phase: PetPhase { model.phase }
@@ -12,6 +13,7 @@ struct PetView: View {
     private var accent: Color { palette.color(for: phase) }
     private var hasProgress: Bool { model.focus?.progress?.fraction != nil }
     private var showsProgress: Bool { phase.isBusy || hasProgress }
+    private var showsPet: Bool { !preferences.hidePet }
 
     private var settingsPresented: Binding<Bool> {
         Binding(
@@ -24,7 +26,9 @@ struct PetView: View {
         GeometryReader { proxy in
             ZStack(alignment: .bottom) {
                 shell(width: proxy.size.width)
-                glow(in: proxy.size)
+                if showsPet {
+                    glow(in: proxy.size)
+                }
                 if model.expanded {
                     expandedContent
                         .transition(.opacity)
@@ -116,16 +120,18 @@ struct PetView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
-            PetAvatar(
-                size: 28,
-                phase: phase,
-                celebrating: model.celebrating,
-                reduceMotion: reduceMotion,
-                palette: palette
-            )
-            .offset(y: 1)
-            .onTapGesture { model.togglePinned() }
-            .accessibilityLabel("\(L10n.phase(phase)), \(L10n.activity(model.focus))")
+            if showsPet {
+                PetAvatar(
+                    size: 28,
+                    phase: phase,
+                    celebrating: model.celebrating,
+                    reduceMotion: reduceMotion,
+                    palette: palette
+                )
+                .offset(y: 1)
+                .onTapGesture { model.togglePinned() }
+                .accessibilityLabel("\(L10n.phase(phase)), \(L10n.activity(model.focus))")
+            }
         }
         .padding(.horizontal, 14)
         .padding(.bottom, 2)
@@ -135,15 +141,17 @@ struct PetView: View {
     private var expandedContent: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .top, spacing: 13) {
-                PetAvatar(
-                    size: 58,
-                    phase: phase,
-                    celebrating: model.celebrating,
-                    reduceMotion: reduceMotion,
-                    palette: palette
-                )
-                .onTapGesture { model.togglePinned() }
-                .accessibilityLabel("\(L10n.phase(phase)), \(L10n.activity(model.focus))")
+                if showsPet {
+                    PetAvatar(
+                        size: 58,
+                        phase: phase,
+                        celebrating: model.celebrating,
+                        reduceMotion: reduceMotion,
+                        palette: palette
+                    )
+                    .onTapGesture { model.togglePinned() }
+                    .accessibilityLabel("\(L10n.phase(phase)), \(L10n.activity(model.focus))")
+                }
 
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L10n.taskTitle(model.focus))
