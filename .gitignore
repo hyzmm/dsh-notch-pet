@@ -1,3 +1,5 @@
 native/.build/
+native/windows/test/
 .DS_Store
 .idea
+.vs/

@@ -1,15 +1,18 @@
 {
   "name": "dsh-notch-pet",
-  "version": "1.5.0",
+  "version": "1.6.0",
   "type": "module",
-  "description": "An animated companion that shows live DSH agent progress in the macOS notch.",
+  "description": "An animated companion that shows live DSH agent progress in the macOS notch or at the top of the Windows desktop.",
   "license": "MIT",
   "keywords": [
     "dsh",
     "dsh-plugin",
     "notch",
     "macos",
+    "windows",
+    "wpf",
     "menu-bar",
+    "tray",
     "agent",
     "companion"
   ],
@@ -35,6 +38,11 @@
     "native/Sources/**/*",
     "native/Info.plist",
     "native/build.sh",
+    "native/windows/bin/DSHNotchPet.exe",
+    "native/windows/src/**/*.cs",
+    "native/windows/app.manifest",
+    "native/windows/app.ico",
+    "native/windows/build.ps1",
     "README.md",
     "scripts/peek.py",
     "docs/*.png"

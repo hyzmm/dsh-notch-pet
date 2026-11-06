@@ -1,6 +1,6 @@
 {
   "meta": {
-    "title": "DSH Notch Pet",
-    "description": "An animated companion that shows live DSH agent progress in the macOS notch."
+    "title": "DSH 刘海宠物",
+    "description": "一只住在 macOS 刘海（或 Windows 桌面顶部）的动画小宠物，实时展示 DSH agent 的任务进度。"
   }
 }

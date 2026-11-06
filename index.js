@@ -14,19 +14,28 @@ import { basename, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 const PROTOCOL_VERSION = 1
+const IS_MACOS = process.platform === 'darwin'
+const IS_WINDOWS = process.platform === 'win32'
 const PLUGIN_ROOT = fileURLToPath(new URL('.', import.meta.url))
-const SUPPORT_DIR = join(homedir(), 'Library', 'Application Support', 'DSHNotchPet')
-const LOG_DIR = join(homedir(), 'Library', 'Logs')
+const LOCAL_APP_DATA =
+  process.env.LOCALAPPDATA || join(homedir(), 'AppData', 'Local')
+const SUPPORT_DIR = IS_WINDOWS
+  ? join(LOCAL_APP_DATA, 'DSHNotchPet')
+  : join(homedir(), 'Library', 'Application Support', 'DSHNotchPet')
+const LOG_DIR = IS_WINDOWS ? join(SUPPORT_DIR, 'logs') : join(homedir(), 'Library', 'Logs')
 const HOST_LOG = join(LOG_DIR, 'DSHNotchPet-host.log')
-const NATIVE_BINARY = join(
-  PLUGIN_ROOT,
-  'native',
-  'DSHNotchPet.app',
-  'Contents',
-  'MacOS',
-  'DSHNotchPet',
-)
+const NATIVE_BINARY = IS_WINDOWS
+  ? join(PLUGIN_ROOT, 'native', 'windows', 'bin', 'DSHNotchPet.exe')
+  : join(
+      PLUGIN_ROOT,
+      'native',
+      'DSHNotchPet.app',
+      'Contents',
+      'MacOS',
+      'DSHNotchPet',
+    )
 const CURRENT_FILE = join(SUPPORT_DIR, 'current.json')
+const STATE_FILE = join(SUPPORT_DIR, `state-${process.pid}.json`)
 const MAX_SESSIONS = 6
 const MAX_TITLE_CHARS = 120
 const MAX_TODOS = 12
@@ -36,7 +45,7 @@ const MAX_REASONING_CHARS = 600
 const MAX_STREAM_CHARS = 4000
 
 export function apply(ctx) {
-  if (process.platform !== 'darwin') return
+  if (!IS_MACOS && !IS_WINDOWS) return
   const bridge = new NotchPetBridge(ctx)
   ctx.effect(() => {
     bridge.start()
@@ -55,6 +64,8 @@ class NotchPetBridge {
   #publishTimer
   #streamPublishTimer
   #heartbeat
+  #lastStateWrite = 0
+  #lastStateLog = 0
   #stopping = false
 
   constructor(ctx) {
@@ -65,8 +76,11 @@ class NotchPetBridge {
     try {
       mkdirSync(SUPPORT_DIR, { recursive: true, mode: 0o700 })
       mkdirSync(LOG_DIR, { recursive: true })
-      this.#socketPath = join(SUPPORT_DIR, `pet-${process.pid}.sock`)
-      rmSync(this.#socketPath, { force: true })
+      this.#socketPath = IS_WINDOWS
+        ? `\\\\.\\pipe\\dsh-notch-pet-${process.pid}`
+        : join(SUPPORT_DIR, `pet-${process.pid}.sock`)
+      if (!IS_WINDOWS) rmSync(this.#socketPath, { force: true })
+      if (IS_WINDOWS) rmSync(STATE_FILE, { force: true })
       this.#start().catch((error) => this.#log(`start failed: ${error?.message ?? error}`))
     } catch (error) {
       this.#log(`init failed: ${error?.message ?? error}`)
@@ -82,7 +96,9 @@ class NotchPetBridge {
     this.#publish({ immediate: true })
     this.#heartbeat = setInterval(() => this.#publish({ immediate: true }), 5000)
     this.#heartbeat.unref?.()
-    this.#log(`started pid=${process.pid} socket=${this.#socketPath}`)
+    this.#log(
+      `started pid=${process.pid} platform=${process.platform} transport=${this.#socketPath}`,
+    )
   }
 
   stop() {
@@ -108,7 +124,8 @@ class NotchPetBridge {
         this.#child.kill('SIGTERM')
       } catch {}
     }
-    rmSync(this.#socketPath, { force: true })
+    if (!IS_WINDOWS) rmSync(this.#socketPath, { force: true })
+    if (IS_WINDOWS) rmSync(STATE_FILE, { force: true })
     try {
       const current = JSON.parse(readText(CURRENT_FILE) ?? 'null')
       if (current?.pid === process.pid) rmSync(CURRENT_FILE, { force: true })
@@ -459,13 +476,20 @@ class NotchPetBridge {
   }
 
   #publish({ immediate = false } = {}) {
-    if (!this.#server || this.#clients.size === 0) return
+    if (this.#stopping || (!this.#server && !IS_WINDOWS)) return
     const payload = JSON.stringify(this.#snapshot(Date.now()))
     for (const client of this.#clients) {
       try {
         client.write(`${payload}\n`)
       } catch {
         this.#clients.delete(client)
+      }
+    }
+    if (IS_WINDOWS && this.#clients.size === 0) {
+      const now = Date.now()
+      if (immediate || now - this.#lastStateWrite >= 180) {
+        this.#lastStateWrite = now
+        this.#writeStateFile(payload)
       }
     }
     if (immediate) this.#writeCurrentFile()
@@ -521,7 +545,11 @@ class NotchPetBridge {
   async #listen() {
     await new Promise((resolve) => {
       const server = createServer((socket) => {
-        socket.setNoDelay(true)
+        // Named-pipe handles ignore TCP-only options; keep this guarded so a
+        // platform-specific handle cannot fail the accept path.
+        try {
+          socket.setNoDelay(true)
+        } catch {}
         this.#clients.add(socket)
         socket.on('close', () => this.#clients.delete(socket))
         socket.on('error', () => this.#clients.delete(socket))
@@ -532,9 +560,11 @@ class NotchPetBridge {
         resolve()
       })
       server.listen(this.#socketPath, () => {
-        try {
-          chmodSync(this.#socketPath, 0o600)
-        } catch {}
+        if (!IS_WINDOWS) {
+          try {
+            chmodSync(this.#socketPath, 0o600)
+          } catch {}
+        }
         this.#server = server
         this.#writeCurrentFile()
         resolve()
@@ -548,14 +578,34 @@ class NotchPetBridge {
         CURRENT_FILE,
         JSON.stringify({
           pid: process.pid,
+          platform: process.platform,
           socket: this.#socketPath,
+          stateFile: IS_WINDOWS ? STATE_FILE : undefined,
           origin: this.#origin(),
           updatedAt: Date.now(),
         }),
         { mode: 0o600 },
       )
-      chmodSync(CURRENT_FILE, 0o600)
+      if (!IS_WINDOWS) chmodSync(CURRENT_FILE, 0o600)
     } catch {}
+  }
+
+  /**
+   * The macOS panel reads a private Unix socket. Windows uses a named pipe,
+   * but some managed/policy-restricted hosts deny named-pipe clients. The
+   * same snapshot is also mirrored to a per-process user-local file so the
+   * overlay can still attach in that environment.
+   */
+  #writeStateFile(payload) {
+    try {
+      writeFileSync(STATE_FILE, payload, { mode: 0o600 })
+    } catch (error) {
+      const now = Date.now()
+      if (now - this.#lastStateLog > 60_000) {
+        this.#lastStateLog = now
+        this.#log(`state mirror failed: ${error?.message ?? error}`)
+      }
+    }
   }
 
   #spawnNative() {
@@ -568,10 +618,14 @@ class NotchPetBridge {
       return
     }
     try {
-      this.#child = spawn(NATIVE_BINARY, ['--socket', this.#socketPath], {
+      const args = IS_WINDOWS
+        ? ['--pipe', this.#socketPath, '--state-file', STATE_FILE]
+        : ['--socket', this.#socketPath]
+      this.#child = spawn(NATIVE_BINARY, args, {
         cwd: PLUGIN_ROOT,
         detached: false,
         stdio: 'ignore',
+        windowsHide: IS_WINDOWS,
       })
       this.#child.unref()
       this.#log(`spawned native pid=${this.#child.pid}`)
@@ -820,10 +874,18 @@ function toolActivity(kind, detail, cwd, tool) {
 
 function shortenDetail(detail, cwd) {
   if (!detail) return ''
-  const base = String(cwd ?? '').replace(/\/+$/, '')
-  if (base && detail.startsWith(`${base}/`)) return detail.slice(base.length + 1)
-  const home = homedir()
-  if (detail.startsWith(`${home}/`)) return `~${detail.slice(home.length)}`
+  const normalizedDetail = detail.replace(/\\/g, '/')
+  const base = String(cwd ?? '').replace(/\\/g, '/').replace(/\/+$/, '')
+  if (
+    base &&
+    normalizedDetail.toLowerCase().startsWith(`${base.toLowerCase()}/`)
+  ) {
+    return detail.slice(base.length + 1)
+  }
+  const home = homedir().replace(/\\/g, '/')
+  if (normalizedDetail.toLowerCase().startsWith(`${home.toLowerCase()}/`)) {
+    return `~${detail.slice(home.length)}`
+  }
   return detail
 }
 
