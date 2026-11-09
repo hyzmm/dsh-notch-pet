@@ -74,6 +74,11 @@ namespace DshNotchPet
             get { return Payload == null ? null : Payload.origin; }
         }
 
+        public DesktopApp Desktop
+        {
+            get { return Payload == null ? null : Payload.desktop; }
+        }
+
         public void ApplyPayload(PetPayload payload)
         {
             if (payload == null) return;

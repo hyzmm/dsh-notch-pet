@@ -121,7 +121,7 @@ disabled or DSH quits, the helper stops with it.
 | Hover the panel | Expands, and stays open while the pointer is inside. |
 | Click the robot | Pins or unpins the panel. A pinned panel ignores hover-out and **Only while working**. |
 | Gear in the footer | Opens settings. |
-| Pin / Open DSH in the footer | Pin the panel, or focus DSH (falling back to the web origin). |
+| Pin / Open DSH in the footer | Pin the panel, or return to DSH — the desktop app, falling back to the web origin. |
 | Right-click the panel | Open DSH, pin or unpin, open settings, or quit. |
 | Pawprint in the menu bar / system tray | Appears while the panel is hidden: Settings, Open DSH, the **Only while working** and **Hide pet** switches, and Quit. |
 | Launch | Peeks open for about three seconds, then settles back to the collapsed strip. |
@@ -254,6 +254,12 @@ Logs are local too:
   the system tray (Windows) or menu bar (macOS); it always appears on Windows.
   On macOS, if **Hide menu bar icon** is also on, start any DSH task and the
   panel will return.
+- **On Windows, Open DSH opens a browser instead of the desktop app.** The
+  button follows the host that serves the session. A session hosted by DSH
+  Desktop raises the Desktop window instead — restoring it from the tray or from
+  behind other windows — and only starts the application again when every window
+  is gone. A session served by `dsh web` in a terminal has no window, so the
+  browser is the right destination.
 - **The Windows panel does not appear.** Check
   `%LOCALAPPDATA%\DSHNotchPet\logs\DSHNotchPet-host.log` and
   `DSHNotchPet.log`. Confirm .NET Framework 4.8 is installed. If you are

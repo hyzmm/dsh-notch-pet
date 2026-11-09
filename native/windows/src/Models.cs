@@ -9,6 +9,7 @@ namespace DshNotchPet
         public int? v { get; set; }
         public double? now { get; set; }
         public string origin { get; set; }
+        public DesktopApp desktop { get; set; }
         public string overall { get; set; }
         public int? activeCount { get; set; }
         public int? totalCount { get; set; }
@@ -26,6 +27,16 @@ namespace DshNotchPet
             payload.sessions = new List<SessionSummary>();
             return payload;
         }
+    }
+
+    /// <summary>
+    /// The desktop shell that owns the DSH window. Present only when the Host
+    /// was started by DSH Desktop; `exe` is the application a second launch
+    /// asks to reopen or raise its window.
+    /// </summary>
+    internal sealed class DesktopApp
+    {
+        public string exe { get; set; }
     }
 
     internal sealed class SessionFocus

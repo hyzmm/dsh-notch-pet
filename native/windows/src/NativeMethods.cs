@@ -15,6 +15,7 @@ namespace DshNotchPet
         public const int WS_EX_LAYERED = 0x00080000;
         public const int WS_POPUP = unchecked((int)0x80000000);
         public const int SW_SHOWNOACTIVATE = 4;
+        public const int SW_SHOW = 5;
         public const int SW_RESTORE = 9;
 
         public const int WH_MOUSE_LL = 14;
@@ -127,5 +128,30 @@ namespace DshNotchPet
 
         [DllImport("user32.dll")]
         public static extern int GetWindowThreadProcessId(IntPtr hWnd, out int processId);
+
+        public delegate bool EnumWindowsProc(IntPtr hWnd, IntPtr lParam);
+
+        [DllImport("user32.dll")]
+        public static extern bool EnumWindows(EnumWindowsProc callback, IntPtr lParam);
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        public static extern int GetClassName(IntPtr hWnd, StringBuilder text, int count);
+
+        [DllImport("user32.dll")]
+        public static extern bool AttachThreadInput(int attachThread, int attachToThread, bool attach);
+
+        [DllImport("user32.dll")]
+        public static extern bool BringWindowToTop(IntPtr hWnd);
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr SetFocus(IntPtr hWnd);
+
+        [DllImport("kernel32.dll")]
+        public static extern int GetCurrentThreadId();
+
+        public const uint GW_OWNER = 4;
+
+        [DllImport("user32.dll")]
+        public static extern IntPtr GetWindow(IntPtr hWnd, uint command);
     }
 }

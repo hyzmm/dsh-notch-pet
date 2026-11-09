@@ -110,7 +110,7 @@ namespace DshNotchPet
             surface.OpenDshRequested += delegate
             {
                 if (settings == null && DateTime.UtcNow >= suppressPanelActionsUntil)
-                    DshLauncher.Open(model.Origin);
+                    DshLauncher.Open(model.Origin, model.Desktop);
             };
             surface.ContextMenuRequested += ShowPanelMenu;
 
@@ -604,7 +604,7 @@ namespace DshNotchPet
 
         internal void OpenDshFromMenu()
         {
-            DshLauncher.Open(model.Origin);
+            DshLauncher.Open(model.Origin, model.Desktop);
         }
 
         internal void TogglePinnedFromMenu()

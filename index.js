@@ -526,6 +526,7 @@ class NotchPetBridge {
       v: PROTOCOL_VERSION,
       now,
       origin: this.#origin(),
+      desktop: this.#desktopApp(),
       overall: overallStatus(focus, running.length, now),
       activeCount: running.length,
       totalCount: states.length,
@@ -540,6 +541,20 @@ class NotchPetBridge {
     } catch {
       return ''
     }
+  }
+
+  /**
+   * The desktop shell that owns the DSH window, when this Host runs inside it.
+   * DSH Desktop starts the Host as a Node-mode Electron child process, so
+   * `execPath` is the Desktop executable: the panel can raise that
+   * application's window, or start it again when every window is gone. A CLI
+   * Host has no window to return to, so the panel keeps using the web origin.
+   */
+  #desktopApp() {
+    if (!IS_WINDOWS || !process.versions?.electron) return null
+    const exe = process.execPath
+    if (!exe || basename(exe).toLowerCase() === 'electron.exe') return null
+    return { exe }
   }
 
   async #listen() {
