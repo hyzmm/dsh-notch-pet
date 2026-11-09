@@ -5,10 +5,37 @@ namespace DshNotchPet
 {
     internal static class L10n
     {
+        public const string LanguageSystemValue = "system";
+        public const string LanguageEnglishValue = "en";
+        public const string LanguageChineseValue = "zh";
+
+        /// <summary>
+        /// The saved preference, normalized. An absent or unknown value is
+        /// "system"; an explicit choice is kept and wins over the environment
+        /// override used by tests.
+        /// </summary>
+        public static string LanguagePreference
+        {
+            get { return NormalizeLanguage(PetPreferences.Current.language); }
+        }
+
+        public static string NormalizeLanguage(string value)
+        {
+            if (string.Equals(value, LanguageEnglishValue, StringComparison.OrdinalIgnoreCase))
+                return LanguageEnglishValue;
+            if (string.Equals(value, LanguageChineseValue, StringComparison.OrdinalIgnoreCase))
+                return LanguageChineseValue;
+            return LanguageSystemValue;
+        }
+
         public static bool IsChinese
         {
             get
             {
+                string preference = LanguagePreference;
+                if (preference == LanguageChineseValue) return true;
+                if (preference == LanguageEnglishValue) return false;
+
                 string forced = Environment.GetEnvironmentVariable("DSH_NOTCH_PET_LOCALE");
                 if (!string.IsNullOrEmpty(forced))
                 {
@@ -247,33 +274,55 @@ namespace DshNotchPet
             }
         }
 
-        public static readonly string AppName = T("DSH Notch Pet", "DSH 刘海宠物");
-        public static readonly string OpenDSH = T("Open DSH", "打开 DSH");
-        public static readonly string Open = T("Open", "打开");
-        public static readonly string QuitPet = T("Quit Notch Pet", "退出刘海宠物");
-        public static readonly string Pin = T("Pin panel", "固定面板");
-        public static readonly string Unpin = T("Unpin panel", "取消固定");
-        public static readonly string Disconnected = T("Disconnected", "已断开");
-        public static readonly string Settings = T("Settings…", "设置…");
-        public static readonly string SettingsTitle = T("Notch Pet", "刘海宠物");
-        public static readonly string SettingsHint = T("Accent color and behavior", "主色调与显示方式");
-        public static readonly string AccentColor = T("Accent color", "主色调");
-        public static readonly string OnlyWhileWorking = T("Only while working", "仅在有任务时显示");
-        public static readonly string OnlyWhileWorkingHint = T(
-            "Hide the panel when no task is running",
-            "无进行中任务时隐藏面板，不占空间");
-        public static readonly string HidePet = T("Hide pet", "隐藏宠物形象");
-        public static readonly string HidePetHint = T(
-            "Keep the task details, hide the animated mascot",
-            "只保留任务信息，不显示动画宠物形象");
-        public static readonly string HideStatusItem = T("Hide tray icon", "隐藏托盘图标");
-        public static readonly string HideStatusItemHint = T(
-            "Keep the pawprint out of the system tray. Start a task to reach the panel again.",
-            "面板隐藏时不在系统托盘留图标；启动任意任务即可唤回面板");
-        public static readonly string CustomColor = T("Custom color", "自定义颜色");
-        public static readonly string CustomHint = T("Pick any color", "点击色块任选颜色");
-        public static readonly string Reset = T("Reset", "恢复默认");
-        public static readonly string Close = T("Close", "关闭");
-        public static readonly string TrayTooltip = T("DSH Notch Pet — live agent progress", "DSH 刘海宠物 — 实时任务进度");
+        // Computed so changing the preference updates every open surface without
+        // restarting the helper.
+        public static string AppName { get { return T("DSH Notch Pet", "DSH 刘海宠物"); } }
+        public static string OpenDSH { get { return T("Open DSH", "打开 DSH"); } }
+        public static string Open { get { return T("Open", "打开"); } }
+        public static string QuitPet { get { return T("Quit Notch Pet", "退出刘海宠物"); } }
+        public static string Pin { get { return T("Pin panel", "固定面板"); } }
+        public static string Unpin { get { return T("Unpin panel", "取消固定"); } }
+        public static string Disconnected { get { return T("Disconnected", "已断开"); } }
+        public static string Settings { get { return T("Settings…", "设置…"); } }
+        public static string SettingsTitle { get { return T("Notch Pet", "刘海宠物"); } }
+        public static string SettingsHint
+        {
+            get { return T("Accent, language and behavior", "主色调、语言与显示方式"); }
+        }
+        public static string AccentColor { get { return T("Accent color", "主色调"); } }
+        public static string OnlyWhileWorking
+        {
+            get { return T("Only while working", "仅在有任务时显示"); }
+        }
+        public static string OnlyWhileWorkingHint
+        {
+            get { return T("Hide the panel when no task is running", "无进行中任务时隐藏面板，不占空间"); }
+        }
+        public static string HidePet { get { return T("Hide pet", "隐藏宠物形象"); } }
+        public static string HidePetHint
+        {
+            get { return T("Keep the task details, hide the animated mascot", "只保留任务信息，不显示动画宠物形象"); }
+        }
+        public static string Language { get { return T("Language", "语言"); } }
+        public static string LanguageHint
+        {
+            get
+            {
+                return T(
+                    "Follow your system language, or choose one here.",
+                    "默认跟随系统语言，也可以在这里手动切换。");
+            }
+        }
+        public static string LanguageSystem { get { return T("Follow system", "跟随系统"); } }
+        public static string LanguageEnglish { get { return "English"; } }
+        public static string LanguageChinese { get { return "中文"; } }
+        public static string CustomColor { get { return T("Custom color", "自定义颜色"); } }
+        public static string CustomHint { get { return T("Pick any color", "点击色块任选颜色"); } }
+        public static string Reset { get { return T("Reset", "恢复默认"); } }
+        public static string Close { get { return T("Close", "关闭"); } }
+        public static string TrayTooltip
+        {
+            get { return T("DSH Notch Pet — live agent progress", "DSH 刘海宠物 — 实时任务进度"); }
+        }
     }
 }

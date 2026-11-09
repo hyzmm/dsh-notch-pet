@@ -1,9 +1,38 @@
 import Foundation
 
+/// The saved choice. `system` is deliberately the default instead of copying
+/// the current OS language, so a later system-language change is followed too.
+enum AppLanguage: String, CaseIterable, Identifiable, Hashable {
+    case system
+    case english = "en"
+    case chinese = "zh"
+
+    var id: String { rawValue }
+}
+
 enum L10n {
-    static var isChinese: Bool {
-        Locale.preferredLanguages.first?.lowercased().hasPrefix("zh") ?? false
+    /// Explicit user choice first, then a test override, then the OS UI
+    /// language. Any locale that is neither Chinese nor English falls back to
+    /// English instead of guessing.
+    static var resolvedLanguage: AppLanguage {
+        let preference = PetPreferences.shared.language
+        if preference != .system { return preference }
+
+        if let override = ProcessInfo.processInfo.environment["DSH_NOTCH_PET_LOCALE"] {
+            let value = override.lowercased()
+            if value.hasPrefix("zh") { return .chinese }
+            if value.hasPrefix("en") { return .english }
+        }
+
+        for identifier in Locale.preferredLanguages {
+            let value = identifier.lowercased()
+            if value.hasPrefix("zh") { return .chinese }
+            if value.hasPrefix("en") { return .english }
+        }
+        return .english
     }
+
+    static var isChinese: Bool { resolvedLanguage == .chinese }
 
     static func t(_ english: String, _ chinese: String) -> String {
         isChinese ? chinese : english
@@ -216,34 +245,54 @@ enum L10n {
         }
     }
 
-    static let appName = t("DSH Notch Pet", "DSH 刘海宠物")
-    static let openDSH = t("Open DSH", "打开 DSH")
-    static let open = t("Open", "打开")
-    static let quitPet = t("Quit Notch Pet", "退出刘海宠物")
-    static let pin = t("Pin panel", "固定面板")
-    static let unpin = t("Unpin panel", "取消固定")
-    static let disconnected = t("Disconnected", "已断开")
-    static let settings = t("Settings…", "设置…")
-    static let settingsTitle = t("Notch Pet", "刘海宠物")
-    static let settingsHint = t("Accent color and behavior", "主色调与显示方式")
-    static let accentColor = t("Accent color", "主色调")
-    static let onlyWhileWorking = t("Only while working", "仅在有任务时显示")
-    static let onlyWhileWorkingHint = t(
-        "Hide the notch when no task is running",
-        "无进行中任务时隐藏刘海，不占空间"
-    )
-    static let hidePet = t("Hide pet", "隐藏宠物形象")
-    static let hidePetHint = t(
-        "Keep the task details, hide the animated mascot",
-        "只保留任务信息，不显示动画宠物形象"
-    )
-    static let hideStatusItem = t("Hide menu bar icon", "隐藏状态栏图标")
-    static let hideStatusItemHint = t(
-        "Keep the pawprint out of the menu bar. Start a task to reach the panel again.",
-        "面板隐藏时不在状态栏留图标；启动任意任务即可唤回面板"
-    )
-    static let customColor = t("Custom color", "自定义颜色")
-    static let customHint = t("Pick any color", "点击色块任选颜色")
-    static let reset = t("Reset", "恢复默认")
-    static let close = t("Close", "关闭")
+    // These are computed rather than `let` so a language change redraws the
+    // panel, menu and settings popover without restarting the helper.
+    static var appName: String { t("DSH Notch Pet", "DSH 刘海宠物") }
+    static var openDSH: String { t("Open DSH", "打开 DSH") }
+    static var open: String { t("Open", "打开") }
+    static var quitPet: String { t("Quit Notch Pet", "退出刘海宠物") }
+    static var pin: String { t("Pin panel", "固定面板") }
+    static var unpin: String { t("Unpin panel", "取消固定") }
+    static var disconnected: String { t("Disconnected", "已断开") }
+    static var settings: String { t("Settings…", "设置…") }
+    static var settingsTitle: String { t("Notch Pet", "刘海宠物") }
+    static var settingsHint: String {
+        t("Accent, language and behavior", "主色调、语言与显示方式")
+    }
+    static var accentColor: String { t("Accent color", "主色调") }
+    static var onlyWhileWorking: String { t("Only while working", "仅在有任务时显示") }
+    static var onlyWhileWorkingHint: String {
+        t(
+            "Hide the notch when no task is running",
+            "无进行中任务时隐藏刘海，不占空间"
+        )
+    }
+    static var hidePet: String { t("Hide pet", "隐藏宠物形象") }
+    static var hidePetHint: String {
+        t(
+            "Keep the task details, hide the animated mascot",
+            "只保留任务信息，不显示动画宠物形象"
+        )
+    }
+    static var hideStatusItem: String { t("Hide menu bar icon", "隐藏状态栏图标") }
+    static var hideStatusItemHint: String {
+        t(
+            "Keep the pawprint out of the menu bar. Start a task to reach the panel again.",
+            "面板隐藏时不在状态栏留图标；启动任意任务即可唤回面板"
+        )
+    }
+    static var language: String { t("Language", "语言") }
+    static var languageHint: String {
+        t(
+            "Follow your system language, or choose one here.",
+            "默认跟随系统语言，也可以在这里手动切换。"
+        )
+    }
+    static var languageSystem: String { t("Follow system", "跟随系统") }
+    static var languageEnglish: String { "English" }
+    static var languageChinese: String { "中文" }
+    static var customColor: String { t("Custom color", "自定义颜色") }
+    static var customHint: String { t("Pick any color", "点击色块任选颜色") }
+    static var reset: String { t("Reset", "恢复默认") }
+    static var close: String { t("Close", "关闭") }
 }

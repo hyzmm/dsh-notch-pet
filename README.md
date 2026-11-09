@@ -58,9 +58,10 @@ the controls.*
   no extra model calls.
 - **Gets out of the way.** Turn on **Only while working** and the panel is ordered
   out entirely whenever no task is running. A pawprint takes its place in the
-  menu bar or system tray, and a second switch hides that too. Pinning overrides
-  it. Prefer a quieter top edge? **Hide pet** drops the animated mascot and its
-  glow while keeping the session title, live step, progress, and token readout.
+  menu bar or system tray; on macOS a second switch hides that too. Pinning
+  overrides it. Prefer a quieter top edge? **Hide pet** drops the animated mascot
+  and its glow while keeping the session title, live step, progress, and token
+  readout.
 - **Six accents, honest status colors.** Glacier (the default cyan), Aurora,
   Iris, Sakura, Tangerine, and Mint, plus a custom hue/saturation/brightness
   picker. Waiting stays amber, errors stay red, and completed turns stay mint.
@@ -68,6 +69,10 @@ the controls.*
   with no Dock icon; Windows uses a nonactivating WPF window with no taskbar
   button, per-monitor DPI scaling, Reduce Motion support, and the same 60 fps
   progress animation. Neither steals focus.
+- **Bilingual without a restart.** The interface follows the macOS or Windows
+  display language by default and falls back to English for every other locale.
+  **Settings → Language** switches between Follow system, English, and 中文, and
+  the panel, menu, and settings update immediately.
 - **Local by design.** The host talks to the panel over a private Unix socket on
   macOS and a per-user named pipe on Windows. No telemetry, no network calls, no
   account.
@@ -175,11 +180,16 @@ The gear opens the same settings popover on both platforms:
 
 - **Accent color** — six presets and a custom HSB field. The choice is stored
   under the user's profile and restored on the next launch.
+- **Language** — **Follow system** (the default), **English**, or **中文**. With
+  Follow system selected, Chinese Windows/macOS displays Chinese and any other
+  system language displays English. The choice is saved and applied immediately;
+  no helper restart is needed.
 - **Only while working** — hide the panel when no task is running. The pawprint
   appears in the menu bar or system tray instead.
 - **Hide pet** — keep the task details but hide the animated mascot and its glow.
-- **Hide tray icon / Hide menu bar icon** — suppress the pawprint too. Starting
-  any task still brings the panel back, so it is never permanently lost.
+- **Hide menu bar icon (macOS)** — suppress the pawprint too. Starting any task
+  still brings the panel back, so it is never permanently lost. Windows always
+  keeps the notification-area pawprint while the panel is hidden.
 
 On Windows the pawprint is a notification-area icon; on macOS it is a menu-bar
 status item. Both open the same menu.
@@ -241,8 +251,9 @@ Logs are local too:
   disable and re-enable it. The helper is launched by DSH; there is no app to
   open.
 - **Only while working is on and no task is running.** Look for the pawprint in
-  the system tray (Windows) or menu bar (macOS). If **Hide tray icon** is also
-  on, start any DSH task and the panel will return.
+  the system tray (Windows) or menu bar (macOS); it always appears on Windows.
+  On macOS, if **Hide menu bar icon** is also on, start any DSH task and the
+  panel will return.
 - **The Windows panel does not appear.** Check
   `%LOCALAPPDATA%\DSHNotchPet\logs\DSHNotchPet-host.log` and
   `DSHNotchPet.log`. Confirm .NET Framework 4.8 is installed. If you are

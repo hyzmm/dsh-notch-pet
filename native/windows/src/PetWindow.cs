@@ -246,6 +246,8 @@ namespace DshNotchPet
 
         private void OnPreferencesChanged()
         {
+            Title = L10n.AppName;
+            tray.RefreshText();
             surface.HideToolTip();
             surface.InvalidateVisual();
             UpdateTrayVisibility();
@@ -514,7 +516,7 @@ namespace DshNotchPet
 
         private void UpdateTrayVisibility()
         {
-            tray.SetVisible(!panelVisible && !preferences.hideStatusItem);
+            tray.SetVisible(!panelVisible);
         }
 
         private void TogglePinned()

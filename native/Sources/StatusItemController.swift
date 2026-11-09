@@ -8,11 +8,15 @@ import Combine
 final class StatusItemController: NSObject, NSMenuDelegate {
     private let item: NSStatusItem
     private let preferences = PetPreferences.shared
+    private let openDSHItem = NSMenuItem()
+    private let settingsItem = NSMenuItem()
     private let hideWhenIdleItem = NSMenuItem()
     private let hidePetItem = NSMenuItem()
+    private let quitItem = NSMenuItem()
     private var menuObservation: AnyCancellable?
     private var petObservation: AnyCancellable?
     private var visibilityObservation: AnyCancellable?
+    private var languageObservation: AnyCancellable?
     private var wantsVisible = false
 
     var onOpenSettings: (() -> Void)?
@@ -33,39 +37,30 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             button.toolTip = L10n.appName
         }
 
+        openDSHItem.title = L10n.openDSH
+        openDSHItem.action = #selector(openDSH)
+
+        settingsItem.title = L10n.settings
+        settingsItem.action = #selector(openSettings)
+
         hideWhenIdleItem.title = L10n.onlyWhileWorking
         hideWhenIdleItem.action = #selector(toggleHideWhenIdle)
 
         hidePetItem.title = L10n.hidePet
         hidePetItem.action = #selector(toggleHidePet)
 
+        quitItem.title = L10n.quitPet
+        quitItem.action = #selector(quit)
+
         let menu = NSMenu()
         menu.delegate = self
-        menu.addItem(
-            NSMenuItem(
-                title: L10n.openDSH,
-                action: #selector(openDSH),
-                keyEquivalent: ""
-            )
-        )
-        menu.addItem(
-            NSMenuItem(
-                title: L10n.settings,
-                action: #selector(openSettings),
-                keyEquivalent: ""
-            )
-        )
+        menu.addItem(openDSHItem)
+        menu.addItem(settingsItem)
         menu.addItem(.separator())
         menu.addItem(hideWhenIdleItem)
         menu.addItem(hidePetItem)
         menu.addItem(.separator())
-        menu.addItem(
-            NSMenuItem(
-                title: L10n.quitPet,
-                action: #selector(quit),
-                keyEquivalent: ""
-            )
-        )
+        menu.addItem(quitItem)
         for menuItem in menu.items where menuItem.action != nil {
             menuItem.target = self
         }
@@ -86,6 +81,15 @@ final class StatusItemController: NSObject, NSMenuDelegate {
             .sink { [weak self] hideStatusItem in
                 self?.refreshVisibility(hideStatusItem: hideStatusItem)
             }
+        // The language itself is read through L10n, so let the stored property
+        // settle before rebuilding those computed strings.
+        languageObservation = preferences.$language
+            .dropFirst()
+            .sink { [weak self] _ in
+                DispatchQueue.main.async {
+                    self?.refreshLocalizedText()
+                }
+            }
     }
 
     /// Requests the menu bar item while the panel is hidden. The user's
@@ -97,6 +101,18 @@ final class StatusItemController: NSObject, NSMenuDelegate {
 
     func menuWillOpen(_ menu: NSMenu) {
         refreshMenuState()
+    }
+
+    private func refreshLocalizedText() {
+        openDSHItem.title = L10n.openDSH
+        settingsItem.title = L10n.settings
+        hideWhenIdleItem.title = L10n.onlyWhileWorking
+        hidePetItem.title = L10n.hidePet
+        quitItem.title = L10n.quitPet
+        if let button = item.button {
+            button.toolTip = L10n.appName
+            button.setAccessibilityLabel(L10n.appName)
+        }
     }
 
     private func refreshMenuState() {

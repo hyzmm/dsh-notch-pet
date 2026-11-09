@@ -36,7 +36,7 @@ namespace DshNotchPet
 
             icon = new NotifyIcon();
             icon.Icon = trayIcon;
-            icon.Text = L10n.TrayTooltip.Length > 63 ? L10n.TrayTooltip.Substring(0, 63) : L10n.TrayTooltip;
+            RefreshText();
             icon.Visible = false;
             icon.MouseUp += delegate(object sender, MouseEventArgs e)
             {
@@ -57,6 +57,12 @@ namespace DshNotchPet
             visible = value;
             icon.Visible = value;
             AppLog.Write("tray icon " + (value ? "shown" : "hidden"));
+        }
+
+        public void RefreshText()
+        {
+            string text = L10n.TrayTooltip;
+            icon.Text = text.Length > 63 ? text.Substring(0, 63) : text;
         }
 
         public void Dispose()

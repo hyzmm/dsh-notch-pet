@@ -798,7 +798,9 @@ function effectiveTitle(state) {
   const title = oneLine(state.title || state.promptTitle || '')
   if (title) return title
   const folder = basename(String(state.cwd ?? ''))
-  return folder || 'DSH session'
+  // Leave the fallback to the native helpers so it follows their language
+  // preference instead of leaking an English host string into a Chinese UI.
+  return folder || ''
 }
 
 function currentTodo(todos) {

@@ -240,8 +240,10 @@ namespace DshNotchPet
 
     internal sealed class SettingsSurface : FrameworkElement
     {
-        public const double CollapsedHeight = 411;
-        public const double ExpandedHeight = 522;
+        // Both heights include the compact language row below the behavior
+        // switches. Keep the expanded popover within a 1366x768 work area.
+        public const double CollapsedHeight = 391;
+        public const double ExpandedHeight = 502;
         private const double Pad = 16;
         private const double GridTop = 71;
         private const double CellHeight = 52;
@@ -252,6 +254,8 @@ namespace DshNotchPet
         private const double RowHeight = 46;
         private const double RowGap = 7;
         private const double SVHeight = 86;
+        private const double LanguageRowHeight = 27;
+        private const double LanguageLabelWidth = 54;
 
         private readonly PetTheme theme;
         private readonly PetPreferences preferences;
@@ -267,7 +271,8 @@ namespace DshNotchPet
         private Rect resetRect;
         private Rect svRect;
         private Rect hueRect;
-        private Rect[] behaviorRects = new Rect[3];
+        private Rect[] behaviorRects = new Rect[2];
+        private Rect[] languageRects = new Rect[3];
         private string hoverKey = string.Empty;
 
         public event Action CloseRequested;
@@ -403,6 +408,7 @@ namespace DshNotchPet
 
             DrawCustomSection(dc, dpi, accent);
             DrawBehavior(dc, dpi, accent);
+            DrawLanguage(dc, dpi, accent);
         }
 
         private void drawHeader(DrawingContext dc, double dpi, double y, double closeX, Color accent)
@@ -559,9 +565,63 @@ namespace DshNotchPet
                 L10n.OnlyWhileWorkingHint, preferences.hideWhenIdle, y + 7);
             DrawBehaviorRow(dc, dpi, accent, 1, "smile", L10n.HidePet, L10n.HidePetHint,
                 preferences.hidePet, y + 7 + RowHeight + RowGap);
-            DrawBehaviorRow(dc, dpi, accent, 2, "menubar", L10n.HideStatusItem,
-                L10n.HideStatusItemHint, preferences.hideStatusItem,
-                y + 7 + (RowHeight + RowGap) * 2);
+        }
+
+        private void DrawLanguage(DrawingContext dc, double dpi, Color accent)
+        {
+            double behaviorTop = customExpanded ? BehaviorTopExpanded : BehaviorTopCollapsed;
+            double lastRowBottom = behaviorTop + 7 + (RowHeight + RowGap) + RowHeight;
+            double dividerY = lastRowBottom + 6;
+            dc.DrawRectangle(Draw.White(0.07), null,
+                new Rect(16, dividerY, SettingsWindow.ContentWidth - 32, 0.6));
+
+            double rowY = dividerY + 7;
+            FormattedText title = Draw.Text(L10n.Language, 8.5, Color.FromArgb(107, 255, 255, 255),
+                FontWeights.Medium, false, 0, 0, dpi, TextTrimming.None);
+            Draw.DrawText(dc, title, 16, rowY + (LanguageRowHeight - title.Height) / 2);
+
+            string[] values = new string[]
+            {
+                L10n.LanguageSystemValue,
+                L10n.LanguageEnglishValue,
+                L10n.LanguageChineseValue
+            };
+            string[] labels = new string[]
+            {
+                L10n.LanguageSystem,
+                L10n.LanguageEnglish,
+                L10n.LanguageChinese
+            };
+            double segmentsX = 16 + LanguageLabelWidth;
+            double available = SettingsWindow.ContentWidth - 32 - LanguageLabelWidth;
+            double gap = 5;
+            double segmentWidth = (available - gap * 2) / 3.0;
+            for (int i = 0; i < values.Length; i++)
+            {
+                Rect rect = new Rect(segmentsX + i * (segmentWidth + gap), rowY,
+                    segmentWidth, LanguageRowHeight);
+                languageRects[i] = rect;
+                bool selected = string.Equals(L10n.LanguagePreference, values[i],
+                    StringComparison.Ordinal);
+                bool hover = hoverKey == "language:" + i;
+                Color fill = selected
+                    ? ColorUtil.WithAlpha(accent, 0.16)
+                    : Draw.White(hover ? 0.075 : 0.045).Color;
+                Color border = selected
+                    ? ColorUtil.WithAlpha(accent, 0.55)
+                    : Draw.White(hover ? 0.13 : 0.06).Color;
+                dc.DrawRoundedRectangle(Draw.Solid(fill), null, rect, 8, 8);
+                dc.DrawRoundedRectangle(null,
+                    new Pen(Draw.Solid(border), selected ? 0.8 : 0.6), rect, 8, 8);
+
+                FormattedText label = Draw.Text(labels[i], 9,
+                    Color.FromArgb((byte)(selected ? 235 : 143), 255, 255, 255),
+                    selected ? FontWeights.SemiBold : FontWeights.Medium, false,
+                    0, 0, dpi, TextTrimming.None);
+                Draw.DrawText(dc, label,
+                    rect.X + (rect.Width - label.WidthIncludingTrailingWhitespace) / 2,
+                    rect.Y + (rect.Height - label.Height) / 2);
+            }
         }
 
         private void DrawBehaviorRow(DrawingContext dc, double dpi, Color accent, int index,
@@ -730,6 +790,16 @@ namespace DshNotchPet
                     return;
                 }
             }
+
+            for (int i = 0; i < languageRects.Length; i++)
+            {
+                if (languageRects[i].Contains(local))
+                {
+                    SelectLanguage(i);
+                    e.Handled = true;
+                    return;
+                }
+            }
         }
 
         protected override void OnMouseLeftButtonUp(MouseButtonEventArgs e)
@@ -756,7 +826,19 @@ namespace DshNotchPet
         {
             if (index == 0) preferences.SetHideWhenIdle(!preferences.hideWhenIdle);
             else if (index == 1) preferences.SetHidePet(!preferences.hidePet);
-            else preferences.SetHideStatusItem(!preferences.hideStatusItem);
+            InvalidateVisual();
+        }
+
+        private void SelectLanguage(int index)
+        {
+            string[] values = new string[]
+            {
+                L10n.LanguageSystemValue,
+                L10n.LanguageEnglishValue,
+                L10n.LanguageChineseValue
+            };
+            if (index < 0 || index >= values.Length) return;
+            preferences.SetLanguage(values[index]);
             InvalidateVisual();
         }
 
@@ -795,6 +877,8 @@ namespace DshNotchPet
             if (customHeaderRect.Contains(local)) return "custom";
             for (int i = 0; i < behaviorRects.Length; i++)
                 if (behaviorRects[i].Contains(local)) return "row:" + i;
+            for (int i = 0; i < languageRects.Length; i++)
+                if (languageRects[i].Contains(local)) return "language:" + i;
             if (customExpanded && (svRect.Contains(local) || hueRect.Contains(local))) return "picker";
             return string.Empty;
         }

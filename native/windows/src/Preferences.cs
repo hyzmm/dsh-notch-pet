@@ -14,8 +14,13 @@ namespace DshNotchPet
     internal sealed class PetPreferences
     {
         public bool hideWhenIdle { get; set; }
-        public bool hideStatusItem { get; set; }
         public bool hidePet { get; set; }
+        /// <summary>
+        /// "system" (the default when absent), "en", or "zh". Storing the
+        /// preference rather than a resolved boolean means a later OS language
+        /// change is followed while "system" is selected.
+        /// </summary>
+        public string language { get; set; }
         public string accentHex { get; set; }
         public bool accentDefaultMigration { get; set; }
 
@@ -57,6 +62,7 @@ namespace DshNotchPet
                     PetPreferences loaded = serializer.Deserialize<PetPreferences>(json);
                     if (loaded != null)
                     {
+                        loaded.language = L10n.NormalizeLanguage(loaded.language);
                         loaded.accentHex = ColorUtil.NormalizeHex(loaded.accentHex);
                         return loaded;
                     }
@@ -80,21 +86,22 @@ namespace DshNotchPet
             RaiseChanged();
         }
 
-        public void SetHideStatusItem(bool value)
-        {
-            if (hideStatusItem == value) return;
-            hideStatusItem = value;
-            Save();
-            AppLog.Write("hideStatusItem=" + value);
-            RaiseChanged();
-        }
-
         public void SetHidePet(bool value)
         {
             if (hidePet == value) return;
             hidePet = value;
             Save();
             AppLog.Write("hidePet=" + value);
+            RaiseChanged();
+        }
+
+        public void SetLanguage(string value)
+        {
+            string next = L10n.NormalizeLanguage(value);
+            if (string.Equals(L10n.LanguagePreference, next, StringComparison.Ordinal)) return;
+            language = next;
+            Save();
+            AppLog.Write("language=" + next);
             RaiseChanged();
         }
 

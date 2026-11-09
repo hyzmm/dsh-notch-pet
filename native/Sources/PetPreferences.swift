@@ -11,7 +11,12 @@ final class PetPreferences: ObservableObject {
         static let hideWhenIdle = "hideWhenIdle"
         static let hideStatusItem = "hideStatusItem"
         static let hidePet = "hidePet"
+        static let language = "language"
     }
+
+    /// The saved interface language. `.system` follows the OS on every launch;
+    /// unsupported system languages resolve to English inside `L10n`.
+    @Published private(set) var language: AppLanguage
 
     /// When true, the panel only exists while at least one agent is working.
     @Published private(set) var hideWhenIdle: Bool
@@ -25,9 +30,18 @@ final class PetPreferences: ObservableObject {
     @Published private(set) var hidePet: Bool
 
     private init() {
+        let storedLanguage = UserDefaults.standard.string(forKey: Key.language)
+        language = AppLanguage(rawValue: storedLanguage ?? "") ?? .system
         hideWhenIdle = UserDefaults.standard.bool(forKey: Key.hideWhenIdle)
         hideStatusItem = UserDefaults.standard.bool(forKey: Key.hideStatusItem)
         hidePet = UserDefaults.standard.bool(forKey: Key.hidePet)
+    }
+
+    func setLanguage(_ value: AppLanguage) {
+        guard language != value else { return }
+        language = value
+        UserDefaults.standard.set(value.rawValue, forKey: Key.language)
+        AppLog.write("language=\(value.rawValue)")
     }
 
     func setHideWhenIdle(_ value: Bool) {

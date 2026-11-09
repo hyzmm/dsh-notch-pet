@@ -33,6 +33,7 @@ struct PetSettingsView: View {
             accentSection
             customSection
             behaviorSection
+            languageSection
         }
         .padding(16)
         .frame(width: 300)
@@ -290,6 +291,54 @@ struct PetSettingsView: View {
                 onChange: preferences.setHideStatusItem
             )
         }
+    }
+
+    private var languageSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Rectangle()
+                .fill(Color.white.opacity(0.07))
+                .frame(height: 0.6)
+
+            HStack(alignment: .center, spacing: 9) {
+                Image(systemName: "globe")
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundStyle(theme.palette.primary.opacity(0.92))
+                    .frame(width: 22, height: 22)
+                    .background(
+                        RoundedRectangle(cornerRadius: 7, style: .continuous)
+                            .fill(theme.palette.primary.opacity(0.14))
+                    )
+
+                VStack(alignment: .leading, spacing: 1) {
+                    Text(L10n.language)
+                        .font(.system(size: 10.5, weight: .medium, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.86))
+                    Text(L10n.languageHint)
+                        .font(.system(size: 8.5, weight: .regular, design: .rounded))
+                        .foregroundStyle(.white.opacity(0.38))
+                        .lineLimit(2)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+
+            Picker("", selection: languageBinding) {
+                Text(L10n.languageSystem).tag(AppLanguage.system)
+                Text(L10n.languageEnglish).tag(AppLanguage.english)
+                Text(L10n.languageChinese).tag(AppLanguage.chinese)
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .controlSize(.small)
+            .tint(theme.palette.primary)
+            .accessibilityLabel(L10n.language)
+        }
+    }
+
+    private var languageBinding: Binding<AppLanguage> {
+        Binding(
+            get: { preferences.language },
+            set: { preferences.setLanguage($0) }
+        )
     }
 
     private func preferenceRow(

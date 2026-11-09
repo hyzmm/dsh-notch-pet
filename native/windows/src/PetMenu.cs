@@ -6,8 +6,15 @@ namespace DshNotchPet
 {
     internal static class PetMenu
     {
+        // Disposing in Closed tears the strip down while WinForms'
+        // ModalMenuFilter still tracks it, so the next mouse-down crashes with
+        // ObjectDisposedException in CloseActiveDropDown. Keep the closed menu
+        // alive and release it when the next one opens.
+        private static ContextMenuStrip lastMenu;
+
         public static ContextMenuStrip Build(PetWindow owner, bool trayMenu, Point screenPoint)
         {
+            DisposeLastMenu();
             ContextMenuStrip menu = new ContextMenuStrip();
             menu.BackColor = System.Drawing.Color.FromArgb(28, 28, 30);
             menu.ForeColor = System.Drawing.Color.FromArgb(235, 235, 240);
@@ -62,12 +69,9 @@ namespace DshNotchPet
             quit.Click += delegate { owner.QuitFromMenu(); };
             menu.Items.Add(quit);
 
+            lastMenu = menu;
             owner.BeginExternalMenu();
-            menu.Closed += delegate
-            {
-                owner.EndExternalMenu();
-                menu.Dispose();
-            };
+            menu.Closed += delegate { owner.EndExternalMenu(); };
             try
             {
                 menu.Show(screenPoint);
@@ -75,9 +79,23 @@ namespace DshNotchPet
             catch
             {
                 owner.EndExternalMenu();
-                menu.Dispose();
             }
             return menu;
+        }
+
+        private static void DisposeLastMenu()
+        {
+            ContextMenuStrip previous = lastMenu;
+            lastMenu = null;
+            if (previous == null) return;
+            try
+            {
+                previous.Dispose();
+            }
+            catch (Exception ex)
+            {
+                AppLog.Write("menu dispose failed: " + ex.Message);
+            }
         }
 
         private static ToolStripMenuItem Item(string text)
